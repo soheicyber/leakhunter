@@ -13,7 +13,7 @@ You should keep track of which webbug ID corresponds to which person, that way
 you know who leaked the document.
 """
 
-from core_module import CoreModule
+from core_module import CoreModule, ModuleCommand
 
 import os
 import argparse
@@ -31,6 +31,8 @@ LOGFILE="log.txt"
 
 class LeakHunter(CoreModule):
 
+  def __init__(self, *args, **kwargs):
+    self.launched = False
 
   def initialize(self):
     if not os.path.exists(LOG):
@@ -39,9 +41,13 @@ class LeakHunter(CoreModule):
       os.system("mkdir campaign")
 
   def get_commands(self) -> dict:
-    return {"help": self.help}
+    return {"help": self.help, CheckLaunch.__name__: CheckLaunch}
 
-  def help(self, *args, **kwargs):
+  def help(self, *args, **kwargs) -> None:
+    if len(args) > 0 and args[0] in self.get_commands().keys():
+      print(self.get_commands()[args[0]].help())
+      return  
+
     print("---")
     print("help -> Show this help dialog")
     print("honeyfile -> Set honeyfile path")
@@ -54,16 +60,16 @@ class LeakHunter(CoreModule):
     print("env -> list all settings")
     print("exit -> Leave")
     print("---")
+    return
 
+class CheckLaunch(ModuleCommand):
 
-def check_launch(MON=False):
-	if CAMPAIGN is None or TARGETFILE is None or HONEYFILE is None:
-		return False
+  def __init__(self, mod, *args, **kwargs):
+    return mod.launched
 
-	if MON and MON_STRING is None:
-		return False
-
-	return True
+  @staticmethod
+  def help(*args, **kwargs):
+    return "CheckLaunch command indicates if a campaign is running."
 
 def append_allowlist(allowlist):
 	fi = open(allowlist, "r")
