@@ -1,0 +1,12 @@
+# Compiled
+__pycache__/
+*.py[cod]
+
+# Campaign
+campaign/*
+
+# Log
+log/*
+
+# Docx
+docx/*

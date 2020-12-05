@@ -2,14 +2,16 @@
 from core import Core
 from modules.leak_hunter import LeakHunter
 
-BANNER="#######################################"
-  "## MOLEHUNT V1.0 Promethean Info Sec ##"
-  "#######################################"
+import argparse
+
+BANNER = """#######################################
+## LeakHunter V1.0 from Sohei Cyber  ##
+#######################################\n"""
 
 WELCOME_MSG = "Welcome, for help type \"help\"."
 
 
-def main()
+def main():
   """Initialize the framework."""
   core=Core(modules=[LeakHunter])
 
