@@ -26,52 +26,105 @@ SUPPORTED_GENERATORS=["docz"]
 
 ALLOWLIST=["127.0.0.1"]
 
-LOGDIR="logs/"
+LOGDIR="log/"
 LOGFILE="log.txt"
+CAMPAIGNDIR="campaign"
+
 
 class LeakHunter(CoreModule):
+  """The module class, to be interpreted by the core framework."""
 
   def __init__(self, *args, **kwargs):
+    super().__init__(None, [Help, CheckLaunch, AddTarget, ShowTargets, DeleteTarget])
     self.launched = False
+    self.target_list = []
 
-  def initialize(self):
-    if not os.path.exists(LOG):
-      os.system("touch %s" %LOG)
-    if not os.path.exists("campaign"):
-      os.system("mkdir campaign")
+    if not os.path.exists(LOGDIR):
+      os.system("mkdir -p {logdir}".format(logdir=LOGDIR))
+    if not os.path.exists(os.path.join(LOGDIR, LOGFILE)):
+      os.system("touch {logfile}".format(logfile=os.path.join(LOGDIR, LOGFILE)))
+    if not os.path.exists(CAMPAIGNDIR):
+      os.system("mkdir -p {campaign}".format(campaign=CAMPAIGN))
 
-  def get_commands(self) -> dict:
-    return {"help": self.help, CheckLaunch.__name__: CheckLaunch}
 
-  def help(self, *args, **kwargs) -> None:
-    if len(args) > 0:
-      print(args)
-      if args[0] in self.get_commands().keys():
-        print(self.get_commands()[args[0]].help())
+###################################################
+# Here are the commands available in this module. #
+###################################################
+
+class Help(ModuleCommand):
+  """The help command."""
+
+  def __init__(self, mod, *args, **kwargs) -> None:
+    if len(args) > 0 and args[0] in mod.get_commands().keys():
+        print(mod.get_commands()[args[0]].help())
         return  
 
-    print("---")
-    print("help -> Show this help dialog")
-    print("honeyfile -> Set honeyfile path")
-    print("allowlist -> Append to allowlist with file at path")
-    print("targetfile -> Set path to target file")
-    print("generate -> Generate campaign")
-    print("campaign -> Set campaign")
-    print("monitor -> Start monitor service")
-    print("log -> set log file")
-    print("env -> list all settings")
-    print("exit -> Leave")
-    print("---")
+    print("--------")
+    for com, c in mod.get_commands().items():
+    
+      print("{command_name}: {help}".format(command_name=com, help=c.help()))
+    print("--------")
     return
+
+  @staticmethod
+  def help(*args, **kwargs) -> str:
+    return "The help method."
+
 
 class CheckLaunch(ModuleCommand):
 
-  def __init__(self, mod, *args, **kwargs):
-    return mod.launched
+  def __init__(self, mod, *args, **kwargs) -> None:
+    print(mod.launched)
 
   @staticmethod
   def help(*args, **kwargs):
     return "CheckLaunch command indicates if a campaign is running."
+
+
+class AddTarget(ModuleCommand):
+
+  def __init__(self, mod, *args, **kwargs) -> None:
+    target=" ".join(args)
+    if not target:
+      return 
+    print("Adding target: {target}".format(target=target))
+    mod.target_list.append(target)
+    return 
+
+  @staticmethod
+  def help() -> str:
+    return "Add a target to the list of targets."
+
+
+class ShowTargets(ModuleCommand):
+  
+  def __init__(self, mod, *args, **kwargs) -> None:
+    print("----------")
+    for i in range(len(mod.target_list)):
+      print("{id}: {target}".format(id=i, target=mod.target_list[i]))
+    print("----------")
+
+  @staticmethod
+  def help() -> str:
+    return "The list of targets as currently loaded."
+
+
+class DeleteTarget(ModuleCommand):
+  
+  def __init__(self, mod, *args, **kwargs) -> None:
+    if len(args) == 0 or len(args) > 1:
+      print("Please provide a target id number from the list of targets (use command show_targets)")
+      return
+    try:
+      v = int(args[0])
+    except ValueError:
+      print("Please provide a valid integer id")
+      return
+    
+    print("Deleting id {v} from list of targets".format(v=v))
+    del mod.target_list[v]
+    
+    
 
 def append_allowlist(allowlist):
 	fi = open(allowlist, "r")

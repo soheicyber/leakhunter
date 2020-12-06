@@ -114,14 +114,13 @@ class Core:
       return True
     com = self._alias_check(s[0])
     args = s[1:]
-    print("DEBUG: ", args)
 
     if com in self.exit_commands_list:
       self._exit()
     elif com in self.core_commands_map.keys():
       self.core_commands_maps[com](*args)
     elif com in self.modules[self._loaded_module].get_commands().keys():
-      self._get_loaded_module().get_commands()[com](*args)
+      self._get_loaded_module().get_commands()[com](self._get_loaded_module(), *args)
     else:
       print(UNKNOWN_COMMAND_MSG)
     return True
