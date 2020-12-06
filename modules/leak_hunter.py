@@ -44,9 +44,11 @@ class LeakHunter(CoreModule):
     return {"help": self.help, CheckLaunch.__name__: CheckLaunch}
 
   def help(self, *args, **kwargs) -> None:
-    if len(args) > 0 and args[0] in self.get_commands().keys():
-      print(self.get_commands()[args[0]].help())
-      return  
+    if len(args) > 0:
+      print(args)
+      if args[0] in self.get_commands().keys():
+        print(self.get_commands()[args[0]].help())
+        return  
 
     print("---")
     print("help -> Show this help dialog")
