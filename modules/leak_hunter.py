@@ -47,6 +47,41 @@ class LeakHunter(CoreModule):
     if not os.path.exists(CAMPAIGNDIR):
       os.system("mkdir -p {campaign}".format(campaign=CAMPAIGN))
 
+  def save_campaign(self) -> None:
+    if not self.campaign:
+      return
+
+    folder = os.path.join(CAMPAIGNDIR, self.campaign)
+    if not os.path.exists(folder):
+      os.system("mkdir -p {campaign}".format(campaign=folder))
+
+    target_list = os.path.join(CAMPAIGNDIR, self.campaign, "target_list")
+    if not os.path.exists(target_list):
+      os.system("touch {target_list}".format(target_list=target_list))
+
+    with open(target_list, "w") as f:
+      for target in self.target_list:
+        f.write(target + os.linesep)
+
+  def load_campaign(self) -> None:
+    if not self.campaign:
+      return
+
+    folder = os.path.join(CAMPAIGNDIR, self.campaign)
+    if not os.path.exists(folder):
+      return
+
+    target_list = os.path.join(CAMPAIGNDIR, self.campaign, "target_list")
+    if not os.path.exists(target_list):
+      return
+
+    with open(target_list, "r") as f:
+      self.target_list = []
+      data = f.read()
+      for line in data.split(os.linesep):
+        if line:
+          self.target_list.append(line)
+
 
 ###################################################
 # Here are the commands available in this module. #
@@ -80,6 +115,8 @@ class SetCampaign(ModuleCommand):
 
     mod.campaign = args[0]
     mod.append_prompt = mod.campaign
+    mod.load_campaign()
+    mod.save_campaign()
 
   @staticmethod
   def help() -> str:
@@ -103,6 +140,7 @@ class AddTarget(ModuleCommand):
       return 
     print("Adding target: {target}".format(target=target))
     mod.target_list.append(target)
+    mod.save_campaign()
     return 
 
   @staticmethod
@@ -137,6 +175,7 @@ class DeleteTarget(ModuleCommand):
     
     print("Deleting id {v} from list of targets".format(v=v))
     del mod.target_list[v]
+    mod.save_campaign()
     
     
 
