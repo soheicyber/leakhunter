@@ -35,8 +35,9 @@ class LeakHunter(CoreModule):
   """The module class, to be interpreted by the core framework."""
 
   def __init__(self, *args, **kwargs):
-    super().__init__(None, [Help, CheckLaunch, AddTarget, ShowTargets, DeleteTarget])
+    super().__init__(None, [Help, CheckLaunch, AddTarget, ShowTargets, DeleteTarget, SetCampaign])
     self.launched = False
+    self.campaign = None
     self.target_list = []
 
     if not os.path.exists(LOGDIR):
@@ -70,6 +71,19 @@ class Help(ModuleCommand):
   def help(*args, **kwargs) -> str:
     return "The help method."
 
+class SetCampaign(ModuleCommand):
+
+  def __init__(self, mod, *args, **kwargs) -> None:
+    if len(args) != 1:
+      print("Provide a campaign name as a single word.")
+      return
+
+    mod.campaign = args[0]
+    mod.append_prompt = mod.campaign
+
+  @staticmethod
+  def help() -> str:
+    return "Set the campaign you are running."
 
 class CheckLaunch(ModuleCommand):
 

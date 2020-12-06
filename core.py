@@ -138,5 +138,7 @@ class Core:
     return self.aliases.get(s, s)
 
   def _get_prompt(self) -> str:
-    return "{module}{prompt} ".format(module=self._loaded_module, prompt=self.prompt) 
+    if not self._get_loaded_module().append_prompt and not isinstance(self._get_loaded_module().append_prompt, str):
+      return "{module}{prompt} ".format(module=self._loaded_module, prompt=self.prompt) 
+    return "{module}-{append}{prompt}".format(module=self._loaded_module, append=self._get_loaded_module().append_prompt, prompt=self.prompt)
       

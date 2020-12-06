@@ -17,6 +17,7 @@ class CoreModule:
   def __init__(self, env=None, commands: List = [ModuleCommand]):
     self.core_env = env
     self.commands = {}
+    self.append_prompt = None
     self.load_commands(commands)
 
   def get_commands(self) -> Dict[str, "ModuleCommand"]:
