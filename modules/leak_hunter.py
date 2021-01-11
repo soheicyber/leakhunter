@@ -16,6 +16,7 @@ you know who leaked the document.
 from core_module import CoreModule, ModuleCommand
 
 import os
+import time
 import shutil
 import argparse
 import hashlib
@@ -40,7 +41,7 @@ class LeakHunter(CoreModule):
     super().__init__(None, [Help, CheckLaunch, AddTarget, ShowTargets, DeleteTarget, SetCampaign, ShowCampaigns, DeleteCampaign, SetTargetFile, ShowTargetFile, ShowTemplateFiles])
     self.launched = False
     self.campaign = None
-    self.target_list = []
+    self.target_list = {}
     self.target_file = ""
 
     if not os.path.exists(LOGDIR):
@@ -63,8 +64,8 @@ class LeakHunter(CoreModule):
       os.system("touch {target_list}".format(target_list=target_list))
 
     with open(target_list, "w") as f:
-      for target in self.target_list:
-        f.write(target + os.linesep)
+      for target, token in self.target_list.items():
+        f.write(target + ":" + token + os.linesep)
 
     target_file = os.path.join(CAMPAIGNDIR, self.campaign, "target_file")
     if not os.path.exists(target_file):
@@ -82,7 +83,7 @@ class LeakHunter(CoreModule):
 
     # Here we flush everything if this campaign doesn't exist.
     if not os.path.exists(folder):
-      self.target_list = []
+      self.target_list = {}
       self.target_file = ""
       return
 
@@ -91,11 +92,14 @@ class LeakHunter(CoreModule):
       return
 
     with open(target_list, "r") as f:
-      self.target_list = []
+      self.target_list = {}
       data = f.read()
       for line in data.split(os.linesep):
         if line:
-          self.target_list.append(line)
+          if not ":" in line:
+            raise Exception("Campaign created on old version of software, cannot import.")
+          target, token = line.split(":")
+          self.target_list[target] = token
 
     target_file = os.path.join(CAMPAIGNDIR, self.campaign, "target_file")
     if not os.path.exists(target_file):
@@ -104,7 +108,8 @@ class LeakHunter(CoreModule):
     with open(target_file, "r") as f:
       self.target_file = f.read()
 
-
+  def generate_token(self, target) -> None:
+    return hashlib.sha256((target + ":" + str(time.time())).encode()).hexdigest()
 
   def list_campaigns(self) -> None:
     campaigns = os.listdir(CAMPAIGNDIR)
@@ -275,7 +280,15 @@ class AddTarget(ModuleCommand):
     if not target:
       return 
     print("Adding target: {target}".format(target=target))
-    mod.target_list.append(target)
+    if target in mod.target_list.keys():
+     print("Target already in list.")
+     return
+
+    if ":" in target:
+     print("Cannot add target with ':' character")
+     return
+
+    mod.target_list[target] = mod.generate_token(target)
     mod.save_campaign()
     return 
 
@@ -288,8 +301,8 @@ class ShowTargets(ModuleCommand):
   
   def __init__(self, mod, *args, **kwargs) -> None:
     print("----------")
-    for i in range(len(mod.target_list)):
-      print("{id}: {target}".format(id=i, target=mod.target_list[i]))
+    for i in range(len(mod.target_list.keys())):
+      print("{id}: {target}".format(id=i, target=list(mod.target_list.keys())[i]))
     print("----------")
 
   @staticmethod
@@ -310,7 +323,7 @@ class DeleteTarget(ModuleCommand):
       return
     
     print("Deleting id {v} from list of targets".format(v=v))
-    del mod.target_list[v]
+    del mod.target_list[mod.target_list.keys()[v]]
     mod.save_campaign()
     
     
