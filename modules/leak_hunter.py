@@ -45,7 +45,7 @@ class LeakHunter(CoreModule):
     if not os.path.exists(os.path.join(LOGDIR, LOGFILE)):
       os.system("touch {logfile}".format(logfile=os.path.join(LOGDIR, LOGFILE)))
     if not os.path.exists(CAMPAIGNDIR):
-      os.system("mkdir -p {campaign}".format(campaign=CAMPAIGN))
+      os.system("mkdir -p {campaign}".format(campaign=CAMPAIGNDIR))
 
   def save_campaign(self) -> None:
     if not self.campaign:
