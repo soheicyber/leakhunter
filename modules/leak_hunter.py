@@ -69,6 +69,7 @@ class LeakHunter(CoreModule):
 
     folder = os.path.join(CAMPAIGNDIR, self.campaign)
     if not os.path.exists(folder):
+      self.target_list = []
       return
 
     target_list = os.path.join(CAMPAIGNDIR, self.campaign, "target_list")
