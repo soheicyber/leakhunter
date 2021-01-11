@@ -1,8 +1,8 @@
 Leakhunter
 ==========
 
-Author(s): Ben [@zaeyx](https://twitter.com/zaeyx)
-Contributors(s):
+Author(s): Ben [@zaeyx](https://twitter.com/zaeyx)  
+Contributors(s):  
 
 Objective
 ---------
