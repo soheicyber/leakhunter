@@ -16,6 +16,7 @@ you know who leaked the document.
 from core_module import CoreModule, ModuleCommand
 
 import os
+import shutil
 import argparse
 import hashlib
 import subprocess
@@ -35,7 +36,7 @@ class LeakHunter(CoreModule):
   """The module class, to be interpreted by the core framework."""
 
   def __init__(self, *args, **kwargs):
-    super().__init__(None, [Help, CheckLaunch, AddTarget, ShowTargets, DeleteTarget, SetCampaign, ShowCampaigns])
+    super().__init__(None, [Help, CheckLaunch, AddTarget, ShowTargets, DeleteTarget, SetCampaign, ShowCampaigns, DeleteCampaign])
     self.launched = False
     self.campaign = None
     self.target_list = []
@@ -91,6 +92,21 @@ class LeakHunter(CoreModule):
       print(campaign)
     print("--------")
 
+  def delete_campaign(self, target) -> None:
+    if self.campaign == target:
+      print("Cannot delete currently loaded campaign")
+      return 
+
+    folder = os.path.join(CAMPAIGNDIR, target)
+
+    campaigns = os.listdir(CAMPAIGNDIR)
+    if not target in campaigns:
+      print("Unknown campaign")
+      return
+
+    shutil.rmtree(folder)
+    
+
 
 ###################################################
 # Here are the commands available in this module. #
@@ -136,12 +152,26 @@ class ShowCampaigns(ModuleCommand):
   def __init__(self, mod, *args, **kwargs) -> None:
     if len(args) > 0:
       print("This command doesn't expect any arguments")
+      return
 
     mod.list_campaigns()
 
   @staticmethod
   def help() -> str:
     return "List all available campaigns"
+
+class DeleteCampaign(ModuleCommand):
+
+  def __init__(self, mod, *args, **kwaergs) -> None:
+    if len(args) != 1:
+      print("Please provide a campaign to remove")
+      return
+
+    mod.delete_campaign(args[0])
+
+  @staticmethod
+  def help() -> str:
+    return "Delete a campaign and all associated data."
 
 
 class CheckLaunch(ModuleCommand):
