@@ -48,6 +48,13 @@ To get started we simply launch leakhunter with the following command:
 
 For this, please make sure that you're in the cloned repo (leakhunter dir). 
 
+Development
+-----------
+
+For an example of how to add a new command, please see: 
+
+[https://github.com/soheicyber/leakhunter/commit/c605186eed567afdd9ecb0cef5116d6601fd90b1](https://github.com/soheicyber/leakhunter/commit/c605186eed567afdd9ecb0cef5116d6601fd90b1)
+
 Bug Fixes & Reports
 -------------------
 
