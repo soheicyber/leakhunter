@@ -35,7 +35,7 @@ class LeakHunter(CoreModule):
   """The module class, to be interpreted by the core framework."""
 
   def __init__(self, *args, **kwargs):
-    super().__init__(None, [Help, CheckLaunch, AddTarget, ShowTargets, DeleteTarget, SetCampaign])
+    super().__init__(None, [Help, CheckLaunch, AddTarget, ShowTargets, DeleteTarget, SetCampaign, ShowCampaigns])
     self.launched = False
     self.campaign = None
     self.target_list = []
@@ -83,6 +83,14 @@ class LeakHunter(CoreModule):
         if line:
           self.target_list.append(line)
 
+  def list_campaigns(self) -> None:
+    campaigns = os.listdir(CAMPAIGNDIR)
+    campaigns.sort()
+    print("--------")
+    for campaign in campaigns:
+      print(campaign)
+    print("--------")
+
 
 ###################################################
 # Here are the commands available in this module. #
@@ -122,6 +130,19 @@ class SetCampaign(ModuleCommand):
   @staticmethod
   def help() -> str:
     return "Set the campaign you are running."
+
+class ShowCampaigns(ModuleCommand):
+
+  def __init__(self, mod, *args, **kwargs) -> None:
+    if len(args) > 0:
+      print("This command doesn't expect any arguments")
+
+    mod.list_campaigns()
+
+  @staticmethod
+  def help() -> str:
+    return "List all available campaigns"
+
 
 class CheckLaunch(ModuleCommand):
 
