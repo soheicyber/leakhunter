@@ -30,16 +30,18 @@ ALLOWLIST=["127.0.0.1"]
 LOGDIR="log/"
 LOGFILE="log.txt"
 CAMPAIGNDIR="campaign"
+TEMPLATEDIR="templates"
 
 
 class LeakHunter(CoreModule):
   """The module class, to be interpreted by the core framework."""
 
   def __init__(self, *args, **kwargs):
-    super().__init__(None, [Help, CheckLaunch, AddTarget, ShowTargets, DeleteTarget, SetCampaign, ShowCampaigns, DeleteCampaign])
+    super().__init__(None, [Help, CheckLaunch, AddTarget, ShowTargets, DeleteTarget, SetCampaign, ShowCampaigns, DeleteCampaign, SetTargetFile, ShowTargetFile, ShowTemplateFiles])
     self.launched = False
     self.campaign = None
     self.target_list = []
+    self.target_file = ""
 
     if not os.path.exists(LOGDIR):
       os.system("mkdir -p {logdir}".format(logdir=LOGDIR))
@@ -64,13 +66,24 @@ class LeakHunter(CoreModule):
       for target in self.target_list:
         f.write(target + os.linesep)
 
+    target_file = os.path.join(CAMPAIGNDIR, self.campaign, "target_file")
+    if not os.path.exists(target_file):
+      os.system("touch {target_file}".format(target_file=target_file))
+
+    with open(target_file, "w") as f:
+      f.write(self.target_file)
+
+
   def load_campaign(self) -> None:
     if not self.campaign:
       return
 
     folder = os.path.join(CAMPAIGNDIR, self.campaign)
+
+    # Here we flush everything if this campaign doesn't exist.
     if not os.path.exists(folder):
       self.target_list = []
+      self.target_file = ""
       return
 
     target_list = os.path.join(CAMPAIGNDIR, self.campaign, "target_list")
@@ -83,6 +96,15 @@ class LeakHunter(CoreModule):
       for line in data.split(os.linesep):
         if line:
           self.target_list.append(line)
+
+    target_file = os.path.join(CAMPAIGNDIR, self.campaign, "target_file")
+    if not os.path.exists(target_file):
+      return
+
+    with open(target_file, "r") as f:
+      self.target_file = f.read()
+
+
 
   def list_campaigns(self) -> None:
     campaigns = os.listdir(CAMPAIGNDIR)
@@ -106,6 +128,24 @@ class LeakHunter(CoreModule):
 
     shutil.rmtree(folder)
     
+  def show_template_files(self) -> None:
+    templates = os.listdir(TEMPLATEDIR)
+    print("--------")
+    for f in templates:
+      print(f)
+    print("--------")
+
+  def set_target_file(self, target) -> None:
+    templates = os.listdir(TEMPLATEDIR)
+    if target not in templates:
+      print("Target file must be from the list of templates..")
+      self.show_template_files()
+      return
+
+    self.target_file = target
+
+  def show_target_file(self) -> None:
+    print(self.target_file)
 
 
 ###################################################
@@ -121,9 +161,14 @@ class Help(ModuleCommand):
         return  
 
     print("--------")
+    buf = []
     for com, c in mod.get_commands().items():
     
-      print("{command_name}: {help}".format(command_name=com, help=c.help()))
+      buf.append("{command_name}: {help}".format(command_name=com, help=c.help()))
+    buf.sort()
+    for line in buf:
+     print(line)
+
     print("--------")
     return
 
@@ -173,6 +218,45 @@ class DeleteCampaign(ModuleCommand):
   def help() -> str:
     return "Delete a campaign and all associated data."
 
+class ShowTemplateFiles(ModuleCommand):
+  
+  def __init__(self, mod, *args, **kwargs) -> None:
+    if len(args) > 0:
+      print("Not expecting any args.")
+      return
+
+    mod.show_template_files()
+
+  @staticmethod
+  def help() -> str:
+    return "List the files available for use in a campaign."
+
+
+class SetTargetFile(ModuleCommand):
+
+  def __init__(self, mod, *args, **kwargs) -> None:
+    if len(args) != 1:
+      print("Need a target file.")
+      return
+
+    mod.set_target_file(args[0])
+
+  @staticmethod
+  def help() -> str:
+    return "Set the target file for a campaign"
+
+class ShowTargetFile(ModuleCommand):
+
+  def __init__(self, mod, *args, **kwargs) -> None:
+    if len(args) > 0:
+      print("Not expecting any args.")
+      return
+
+    mod.show_target_file()
+
+  @staticmethod
+  def help() -> str:
+    return "Show the currently selected file."
 
 class CheckLaunch(ModuleCommand):
 
