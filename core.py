@@ -1,3 +1,4 @@
+import sys
 
 from core_module import CoreModule
 from core_commands import CoreCommands
@@ -141,4 +142,3 @@ class Core:
     if not self._get_loaded_module().append_prompt and not isinstance(self._get_loaded_module().append_prompt, str):
       return "{module}{prompt} ".format(module=self._loaded_module, prompt=self.prompt) 
     return "{module}-{append}{prompt}".format(module=self._loaded_module, append=self._get_loaded_module().append_prompt, prompt=self.prompt)
-      

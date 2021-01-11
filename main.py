@@ -1,3 +1,8 @@
+import six
+
+if six.PY2:
+  raise Exception("Please only launch this software with python3.")
+  sys.exit()
 
 from core import Core
 from modules.leak_hunter import LeakHunter
@@ -9,7 +14,6 @@ BANNER = """#######################################
 #######################################\n"""
 
 WELCOME_MSG = "Welcome, for help type \"help\"."
-
 
 def main():
   """Initialize the framework."""
