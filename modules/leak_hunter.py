@@ -77,23 +77,21 @@ class LeakHunter(CoreModule):
         f.write(target + ":" + token + os.linesep)
 
     target_file = os.path.join(CAMPAIGNDIR, self.campaign, "target_file")
-    if not os.path.exists(target_file):
-      os.system("touch {target_file}".format(target_file=target_file))
-
-    with open(target_file, "w") as f:
-      f.write(self.target_file)
-
     listen_port_file = os.path.join(
         CAMPAIGNDIR, self.campaign, "listen_port_file")
     listen_addr_file = os.path.join(
         CAMPAIGNDIR, self.campaign, "listen_addr_file")
+    if not os.path.exists(target_file):
+      os.system("touch {target_file}".format(target_file=target_file))
     if not os.path.exists(listen_port_file):
       os.system("touch {listen_port_file}".format(
           listen_port_file=listen_port_file))
-
     if not os.path.exists(listen_addr_file):
       os.system("touch {listen_addr_file}".format(
           listen_addr_file=listen_addr_file))
+
+    with open(target_file, 'w') as f:
+      f.write(str(self.target_file))
 
     with open(listen_port_file, 'w') as f:
       f.write(str(self.listen_port))
@@ -344,10 +342,10 @@ class SetCampaign(ModuleCommand):
       print("Provide a campaign name as a single word.")
       return
 
+    mod.save_campaign()
     mod.campaign = args[0]
     mod.append_prompt = mod.campaign
     mod.load_campaign()
-    mod.save_campaign()
 
   @staticmethod
   def help() -> str:
@@ -412,6 +410,7 @@ class SetListenAddress(ModuleCommand):
       return
 
     mod.set_listen_addr(addr)
+    mod.save_campaign()
 
   @staticmethod
   def help() -> str:
@@ -446,6 +445,7 @@ class SetListenPort(ModuleCommand):
       return
 
     mod.set_listen_port(port)
+    mod.save_campaign()
 
   @staticmethod
   def help() -> str:
@@ -470,6 +470,7 @@ class SetTargetFile(ModuleCommand):
       return
 
     mod.set_target_file(args[0])
+    mod.save_campaign()
 
   @staticmethod
   def help() -> str:
