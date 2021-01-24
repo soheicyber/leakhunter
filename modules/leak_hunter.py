@@ -23,31 +23,38 @@ import hashlib
 import subprocess
 import time
 import sqlite3
+import socket
 
-SUPPORTED_GENERATORS=["docz"]
+SUPPORTED_GENERATORS = ["docz"]
 
-ALLOWLIST=["127.0.0.1"]
+ALLOWLIST = ["127.0.0.1"]
 
-LOGDIR="log/"
-LOGFILE="log.txt"
-CAMPAIGNDIR="campaign"
-TEMPLATEDIR="templates"
+DEFAULT_PORT = 5578
+
+LOGDIR = "log/"
+LOGFILE = "log.txt"
+CAMPAIGNDIR = "campaign"
+TEMPLATEDIR = "templates"
 
 
 class LeakHunter(CoreModule):
   """The module class, to be interpreted by the core framework."""
 
   def __init__(self, *args, **kwargs):
-    super().__init__(None, [Help, CheckLaunch, AddTarget, ShowTargets, DeleteTarget, SetCampaign, ShowCampaigns, DeleteCampaign, SetTargetFile, ShowTargetFile, ShowTemplateFiles])
+    super().__init__(None, [Help, CheckLaunch, AddTarget, ShowTargets, DeleteTarget, SetCampaign, ShowCampaigns, DeleteCampaign,
+                            SetTargetFile, ShowTargetFile, ShowTemplateFiles, SetListenAddress, SetListenPort, ShowListenPort, ShowListenAddress])
     self.launched = False
     self.campaign = None
     self.target_list = {}
     self.target_file = ""
+    self.listen_addr = ""
+    self.listen_port = DEFAULT_PORT
 
     if not os.path.exists(LOGDIR):
       os.system("mkdir -p {logdir}".format(logdir=LOGDIR))
     if not os.path.exists(os.path.join(LOGDIR, LOGFILE)):
-      os.system("touch {logfile}".format(logfile=os.path.join(LOGDIR, LOGFILE)))
+      os.system("touch {logfile}".format(
+          logfile=os.path.join(LOGDIR, LOGFILE)))
     if not os.path.exists(CAMPAIGNDIR):
       os.system("mkdir -p {campaign}".format(campaign=CAMPAIGNDIR))
 
@@ -74,6 +81,23 @@ class LeakHunter(CoreModule):
     with open(target_file, "w") as f:
       f.write(self.target_file)
 
+    listen_port_file = os.path.join(
+        CAMPAIGNDIR, self.campaign, "listen_port_file")
+    listen_addr_file = os.path.join(
+        CAMPAIGNDIR, self.campaign, "listen_addr_file")
+    if not os.path.exists(listen_port_file):
+      os.system("touch {listen_port_file}".format(
+          listen_port_file=listen_port_file))
+
+    if not os.path.exists(listen_addr_file):
+      os.system("touch {listen_addr_file}".format(
+          listen_addr_file=listen_addr_file))
+
+    with open(listen_port_file, 'w') as f:
+      f.write(str(self.listen_port))
+
+    with open(listen_addr_file, 'w') as f:
+      f.write(self.listen_addr)
 
   def load_campaign(self) -> None:
     if not self.campaign:
@@ -85,6 +109,8 @@ class LeakHunter(CoreModule):
     if not os.path.exists(folder):
       self.target_list = {}
       self.target_file = ""
+      self.listen_port = DEFAULT_PORT
+      self.listen_addr = "127.0.0.1"
       return
 
     target_list = os.path.join(CAMPAIGNDIR, self.campaign, "target_list")
@@ -97,16 +123,31 @@ class LeakHunter(CoreModule):
       for line in data.split(os.linesep):
         if line:
           if not ":" in line:
-            raise Exception("Campaign created on old version of software, cannot import.")
+            raise Exception(
+                "Campaign created on old version of software, cannot import.")
           target, token = line.split(":")
           self.target_list[target] = token
 
     target_file = os.path.join(CAMPAIGNDIR, self.campaign, "target_file")
-    if not os.path.exists(target_file):
+    listen_port_file = os.path.join(
+        CAMPAIGNDIR, self.campaign, "listen_port_file")
+    listen_addr_file = os.path.join(
+        CAMPAIGNDIR, self.campaign, "listen_addr_file")
+    if not os.path.exists(target_file) or not os.path.exists(listen_port_file) or not os.path.exists(listen_addr_file):
       return
 
     with open(target_file, "r") as f:
       self.target_file = f.read()
+
+    with open(listen_port_file, "r") as f:
+      try:
+        self.listen_port = int(f.read())
+      except ValueError:
+        print("This campaign save has an invalid port value.\nSetting port to default.")
+        self.listen_port = DEFAULT_PORT
+
+    with open(listen_addr_file, "r") as f:
+      self.listen_addr = f.read()
 
   def generate_token(self, target) -> None:
     return hashlib.sha256((target + ":" + str(time.time())).encode()).hexdigest()
@@ -122,7 +163,7 @@ class LeakHunter(CoreModule):
   def delete_campaign(self, target) -> None:
     if self.campaign == target:
       print("Cannot delete currently loaded campaign")
-      return 
+      return
 
     folder = os.path.join(CAMPAIGNDIR, target)
 
@@ -132,7 +173,7 @@ class LeakHunter(CoreModule):
       return
 
     shutil.rmtree(folder)
-    
+
   def show_template_files(self) -> None:
     templates = os.listdir(TEMPLATEDIR)
     print("--------")
@@ -152,6 +193,18 @@ class LeakHunter(CoreModule):
   def show_target_file(self) -> None:
     print(self.target_file)
 
+  def set_listen_port(self, port) -> None:
+    self.listen_port = port
+
+  def show_listen_port(self) -> None:
+    print("{port}".format(port=self.listen_port))
+
+  def set_listen_addr(self, addr) -> None:
+    self.listen_addr = addr
+
+  def show_listen_addr(self) -> None:
+    print("{addr}".format(addr=self.listen_addr))
+
 
 ###################################################
 # Here are the commands available in this module. #
@@ -162,17 +215,18 @@ class Help(ModuleCommand):
 
   def __init__(self, mod, *args, **kwargs) -> None:
     if len(args) > 0 and args[0] in mod.get_commands().keys():
-        print(mod.get_commands()[args[0]].help())
-        return  
+      print(mod.get_commands()[args[0]].help())
+      return
 
     print("--------")
     buf = []
     for com, c in mod.get_commands().items():
-    
-      buf.append("{command_name}: {help}".format(command_name=com, help=c.help()))
+
+      buf.append("{command_name}: {help}".format(
+          command_name=com, help=c.help()))
     buf.sort()
     for line in buf:
-     print(line)
+      print(line)
 
     print("--------")
     return
@@ -180,6 +234,7 @@ class Help(ModuleCommand):
   @staticmethod
   def help(*args, **kwargs) -> str:
     return "The help method."
+
 
 class SetCampaign(ModuleCommand):
 
@@ -197,6 +252,7 @@ class SetCampaign(ModuleCommand):
   def help() -> str:
     return "Set the campaign you are running."
 
+
 class ShowCampaigns(ModuleCommand):
 
   def __init__(self, mod, *args, **kwargs) -> None:
@@ -209,6 +265,7 @@ class ShowCampaigns(ModuleCommand):
   @staticmethod
   def help() -> str:
     return "List all available campaigns"
+
 
 class DeleteCampaign(ModuleCommand):
 
@@ -223,8 +280,9 @@ class DeleteCampaign(ModuleCommand):
   def help() -> str:
     return "Delete a campaign and all associated data."
 
+
 class ShowTemplateFiles(ModuleCommand):
-  
+
   def __init__(self, mod, *args, **kwargs) -> None:
     if len(args) > 0:
       print("Not expecting any args.")
@@ -235,6 +293,72 @@ class ShowTemplateFiles(ModuleCommand):
   @staticmethod
   def help() -> str:
     return "List the files available for use in a campaign."
+
+
+class SetListenAddress(ModuleCommand):
+
+  def __init__(self, mod, *args, **kwargs) -> None:
+    if len(args) != 1:
+      print("Please provide the IP address to route back to this machine.")
+      return
+
+    addr = args[0]
+
+    try:
+      socket.inet_aton(addr)
+    except socket.error:
+      print("Please provide a valid IP address.")
+      return
+
+    mod.set_listen_addr(addr)
+
+  @staticmethod
+  def help() -> str:
+    return "Set the address we will call back to."
+
+
+class ShowListenAddress(ModuleCommand):
+
+  def __init__(self, mod, *args, **kwargs) -> None:
+    mod.show_listen_addr()
+
+  @staticmethod
+  def help() -> str:
+    return "Show the currently set address we will call back to."
+
+
+class SetListenPort(ModuleCommand):
+
+  def __init__(self, mod, *args, **kwargs) -> None:
+    if len(args) != 1:
+      print("Please provide a port.")
+      return
+
+    try:
+      port = int(args[0])
+    except ValueError:
+      print("Please provide an integer value")
+      return
+
+    if port < 0 or port > 65535:
+      print("Please provide a value in the range 0 < i < 65536")
+      return
+
+    mod.set_listen_port(port)
+
+  @staticmethod
+  def help() -> str:
+    return "Set the port we will call back to."
+
+
+class ShowListenPort(ModuleCommand):
+
+  def __init__(self, mod, *args, **kwargs) -> None:
+    mod.show_listen_port()
+
+  @staticmethod
+  def help() -> str:
+    return "Show the currently set port we will call back to."
 
 
 class SetTargetFile(ModuleCommand):
@@ -250,6 +374,7 @@ class SetTargetFile(ModuleCommand):
   def help() -> str:
     return "Set the target file for a campaign"
 
+
 class ShowTargetFile(ModuleCommand):
 
   def __init__(self, mod, *args, **kwargs) -> None:
@@ -262,6 +387,7 @@ class ShowTargetFile(ModuleCommand):
   @staticmethod
   def help() -> str:
     return "Show the currently selected file."
+
 
 class CheckLaunch(ModuleCommand):
 
@@ -276,21 +402,21 @@ class CheckLaunch(ModuleCommand):
 class AddTarget(ModuleCommand):
 
   def __init__(self, mod, *args, **kwargs) -> None:
-    target=" ".join(args)
+    target = " ".join(args)
     if not target:
-      return 
+      return
     print("Adding target: {target}".format(target=target))
     if target in mod.target_list.keys():
-     print("Target already in list.")
-     return
+      print("Target already in list.")
+      return
 
     if ":" in target:
-     print("Cannot add target with ':' character")
-     return
+      print("Cannot add target with ':' character")
+      return
 
     mod.target_list[target] = mod.generate_token(target)
     mod.save_campaign()
-    return 
+    return
 
   @staticmethod
   def help() -> str:
@@ -298,11 +424,12 @@ class AddTarget(ModuleCommand):
 
 
 class ShowTargets(ModuleCommand):
-  
+
   def __init__(self, mod, *args, **kwargs) -> None:
     print("----------")
     for i in range(len(mod.target_list.keys())):
-      print("{id}: {target}".format(id=i, target=list(mod.target_list.keys())[i]))
+      print("{id}: {target}".format(
+          id=i, target=list(mod.target_list.keys())[i]))
     print("----------")
 
   @staticmethod
@@ -311,7 +438,7 @@ class ShowTargets(ModuleCommand):
 
 
 class DeleteTarget(ModuleCommand):
-  
+
   def __init__(self, mod, *args, **kwargs) -> None:
     if len(args) == 0 or len(args) > 1:
       print("Please provide a target id number from the list of targets (use command show_targets)")
@@ -321,264 +448,277 @@ class DeleteTarget(ModuleCommand):
     except ValueError:
       print("Please provide a valid integer id")
       return
-    
+
     print("Deleting id {v} from list of targets".format(v=v))
     del mod.target_list[mod.target_list.keys()[v]]
     mod.save_campaign()
-    
-    
+
 
 def append_allowlist(allowlist):
-	fi = open(allowlist, "r")
-	data = fi.read()
-	fi.close()
-	for ip in data.split("\n"):
-		ALLOWLIST.append(ip)
+  fi = open(allowlist, "r")
+  data = fi.read()
+  fi.close()
+  for ip in data.split("\n"):
+    ALLOWLIST.append(ip)
+
 
 def embed(SOST, EMB):
-	return SOST.replace("::ID", EMB)
+  return SOST.replace("::ID", EMB)
+
 
 def docz(FINA, SOST, EMB, NIM, CAMP, PATH):
-	SOST = embed(SOST, EMB)
-	SOST = SOST.replace("\\","").replace("&","\\&")
-	if VERBOSE:
-		print("Creating file for: %s" % NIM)
-		print("Unique file id is: %s" % EMB)
-		print("Connection string: %s" % SOST)
-	
-	out = subprocess.check_output("python "+PATH+" "+FINA+" "+SOST,shell=True)
-	if VERBOSE:
-		print(out)
-	out1 = subprocess.check_output("mv ./output.docx campaign/"+str(CAMP)+"/"+str(NIM)+".docx", shell=True)
+  SOST = embed(SOST, EMB)
+  SOST = SOST.replace("\\", "").replace("&", "\\&")
+  if VERBOSE:
+    print("Creating file for: %s" % NIM)
+    print("Unique file id is: %s" % EMB)
+    print("Connection string: %s" % SOST)
+
+  out = subprocess.check_output(
+      "python " + PATH + " " + FINA + " " + SOST, shell=True)
+  if VERBOSE:
+    print(out)
+  out1 = subprocess.check_output(
+      "mv ./output.docx campaign/" + str(CAMP) + "/" + str(NIM) + ".docx", shell=True)
+
 
 def alert(msg):
-	print(msg)
+  print(msg)
 
-	c = "[%s]" % CAMPAIGN
+  c = "[%s]" % CAMPAIGN
 
-	fi=open(LOG, "a")
-	fi.write(c + msg + "\n")
-	fi.close()
+  fi = open(LOG, "a")
+  fi.write(c + msg + "\n")
+  fi.close()
 
 
 def allowlist():
-	global ALLOWLIST
-	ALLOWLIST.append(raw_input("Enter IP to add: "))
+  global ALLOWLIST
+  ALLOWLIST.append(raw_input("Enter IP to add: "))
+
 
 def honeyfile():
-	global HONEYFILE
-	HONEYFILE = raw_input("Path to honeyfile: ")
+  global HONEYFILE
+  HONEYFILE = raw_input("Path to honeyfile: ")
+
 
 def targetfile():
-	global TARGETFILE
-	TARGETFILE = raw_input("Path to targetfile: ")
+  global TARGETFILE
+  TARGETFILE = raw_input("Path to targetfile: ")
+
 
 def campaign():
-	global CAMPAIGN
-	CAMPAIGN = raw_input("Campaign name: ")
+  global CAMPAIGN
+  CAMPAIGN = raw_input("Campaign name: ")
+
 
 def monitor():
-	if not check_launch(MON=True):
-		return
+  if not check_launch(MON=True):
+    return
 
-	if MON_STRING.split(":")[0] == "honeybadger":
-		while True:
-			time.sleep(PAUSE)
-			honeybadger()
-			
-	
-	if MON_STRING.split(":")[0] == "sqlitebugserver":
-		while True:
-			time.sleep(PAUSE)
-			sqlitebugserver()
+  if MON_STRING.split(":")[0] == "honeybadger":
+    while True:
+      time.sleep(PAUSE)
+      honeybadger()
 
-	if MON_STRING.split(":")[0] == "webbugserver":
-		while True:
-			time.sleep(PAUSE)
-			webbugserver()
+  if MON_STRING.split(":")[0] == "sqlitebugserver":
+    while True:
+      time.sleep(PAUSE)
+      sqlitebugserver()
 
-	return
+  if MON_STRING.split(":")[0] == "webbugserver":
+    while True:
+      time.sleep(PAUSE)
+      webbugserver()
+
+  return
+
 
 def log():
-	global LOG
-	LOG = raw_input("New Log File: ")
+  global LOG
+  LOG = raw_input("New Log File: ")
+
 
 def parse_targets():
-	fi = open(TARGETFILE, "r")
-	data = fi.read()
-	fi.close()
+  fi = open(TARGETFILE, "r")
+  data = fi.read()
+  fi.close()
 
-	temp = []
+  temp = []
 
+  for i in data.split("\n"):
+    if len(i) < 1:
+      continue
 
-	for i in data.split("\n"):
-		if len(i) < 1:
-			continue
+    h = hashlib.sha1(CAMPAIGN + i).hexdigest()
 
-		h = hashlib.sha1(CAMPAIGN+i).hexdigest()
+    temp.append(i + "::" + h)
 
-		temp.append(i + "::" + h)
+  out = subprocess.check_output(
+      "touch campaign/%s/.read" % CAMPAIGN, shell=True)
 
-	out = subprocess.check_output("touch campaign/%s/.read" % CAMPAIGN, shell=True)
+  if not os.path.exists("campaign/%s" % CAMPAIGN):
+    subprocess.check_output("mkdir campaign/%s" % CAMPAIGN, shell=True)
+  fi = open("campaign/" + CAMPAIGN + "/MAPPING.txt", "w")
+  fi.write("\n".join(temp))
+  fi.close()
 
-	if not os.path.exists("campaign/%s" % CAMPAIGN):
-		subprocess.check_output("mkdir campaign/%s" % CAMPAIGN, shell=True)
-	fi = open("campaign/"+CAMPAIGN+"/MAPPING.txt", "w")
-	fi.write("\n".join(temp))
-	fi.close()
+  return temp
 
-	return temp
 
 def generate():
-	if not check_launch():
-		return
-	
-	if not os.path.exists("campaign/%s" % CAMPAIGN):
-		subprocess.check_output("mkdir campaign/%s" % CAMPAIGN, shell=True)
+  if not check_launch():
+    return
 
-	for pair in parse_targets():
-		this_name, this_id=pair.split("::")
-		this_name = this_name.strip().replace(" ","_")
-		this_id=this_id.strip()
-		docz(HONEYFILE, SOURCE_STRING, this_id, this_name, CAMPAIGN, BUILDER_STRING.split(":")[1])
-	print("Generation complete...")
-	print("Files saved to: %s/%s" % ( "campaign", CAMPAIGN ))
-	return
+  if not os.path.exists("campaign/%s" % CAMPAIGN):
+    subprocess.check_output("mkdir campaign/%s" % CAMPAIGN, shell=True)
+
+  for pair in parse_targets():
+    this_name, this_id = pair.split("::")
+    this_name = this_name.strip().replace(" ", "_")
+    this_id = this_id.strip()
+    docz(HONEYFILE, SOURCE_STRING, this_id, this_name,
+         CAMPAIGN, BUILDER_STRING.split(":")[1])
+  print("Generation complete...")
+  print("Files saved to: %s/%s" % ("campaign", CAMPAIGN))
+  return
+
 
 def env():
-	print("\n-- printing environment --\n")
-	print("Campaign: %s" % CAMPAIGN)
-	print("Targetfile: %s" % TARGETFILE)
-	print("Honeyfile: %s" % HONEYFILE)
-	print("Logfile: %s" % LOG)
-	print("Buildstring: %s" % BUILDER_STRING)
-	print("Sourcestring: %s" % SOURCE_STRING)
-	print("Monstring: %s" % MON_STRING)
-	
-	print("Allowlist: %s" % ALLOWLIST)
-	
+  print("\n-- printing environment --\n")
+  print("Campaign: %s" % CAMPAIGN)
+  print("Targetfile: %s" % TARGETFILE)
+  print("Honeyfile: %s" % HONEYFILE)
+  print("Logfile: %s" % LOG)
+  print("Buildstring: %s" % BUILDER_STRING)
+  print("Sourcestring: %s" % SOURCE_STRING)
+  print("Monstring: %s" % MON_STRING)
 
-###END COM FUNCTIONS
+  print("Allowlist: %s" % ALLOWLIST)
+
+
+# END COM FUNCTIONS
 
 
 def parse_com(com):
 
-	comMap = {
-	"help":help,
-	"allowlist":allowlist,
-	"honeyfile":honeyfile,
-	"targetfile":targetfile,
-	"generate":generate,
-	"campaign":campaign,
-	"monitor":monitor,
-	"log":log,
-	"env":env,
-	"exit":exit
-	}
+  comMap = {
+      "help": help,
+      "allowlist": allowlist,
+      "honeyfile": honeyfile,
+      "targetfile": targetfile,
+      "generate": generate,
+      "campaign": campaign,
+      "monitor": monitor,
+      "log": log,
+      "env": env,
+      "exit": exit
+  }
 
-	if com in comMap.keys():
-		return comMap[com]()
-	else:
-		print("Command not found")
-
-if __name__=="__main__":
-	initialize()
-
-	parser = argparse.ArgumentParser()
-	parser.add_argument("--no-mon", action="store_true", help="Disable monitor features")
-	parser.add_argument("-v","--verbose", action="store_true", help="Prints more about what's happening.")
-	parser.add_argument("--source-string",help="Specifies collection source")
-	parser.add_argument("--mon-string",help="Specifies mon access")
-	parser.add_argument("--build-string",help="Specifies builder tool")
-	parser.add_argument("--honeyfile",help="Path to honeyfile.  The docx file to be used as bait.")
-	parser.add_argument("--targetfile",help="Path to target file.  One name per line")
-	parser.add_argument("--allowlist",help="Path to allowlist.  Internal IPs to ignore")
-	parser.add_argument("--campaign",help="Campaign name")
-	
-
-	args = parser.parse_args()
-
-	if args.mon_string:
-		MON_STRING=args.mon_string
-
-	if args.build_string:
-		BUILDER_STRING=args.build_string
-
-	if args.source_string:
-		SOURCE_STRING=args.source_string
-
-	if args.honeyfile:
-		HONEYFILE=args.honeyfile
-
-	if args.targetfile:
-		TARGETFILE=args.targetfile
-
-	if args.allowlist:
-		append_allowlist(allowlist)
-
-	if args.campaign:
-		CAMPAIGN=args.campaign
-
-	if args.verbose:
-		VERBOSE=True
-
-	if not args.no_mon and MON_STRING == None:
-		print("Error: MON_STRING not set")
-		print("Please modify script to set MON_STRING")
-		print("Alternatively you can specify on command line")
-		print("Use: --mon-string=\"<monstring>\"")
-		print("Or, disable mon features with --no-mon")
-		print("Exiting..")
-		exit()
-
-	if SOURCE_STRING == None:
-		print("Error: SOURCE_STRING not set")
-		print("Please modify script to set SOURCE_STRING")
-		print("Alternatively you can specify on command line")
-		print("Use: --source-string=\"<sourcestring>\"")
-		print("Exiting..")
-		exit()
-
-	if BUILDER_STRING == None:
-		print("Error: BUILDER_STRING not set")
-		print("Please modify script to set BUILDER_STRING")
-		print("Alternatively you can specify on command line")
-		print("Use: --build-string=\"<buildstring>\"")
-		print("Exiting..")
-		exit()
+  if com in comMap.keys():
+    return comMap[com]()
+  else:
+    print("Command not found")
 
 
+if __name__ == "__main__":
+  initialize()
 
-	if not args.no_mon and MON_STRING.split(":")[0] not in SUPPORTED_COLLECTORS:
-		print("Error: MON_STRING collector not supported")
-		print("Supported collectors are:")
-		for collector in SUPPORTED_COLLECTORS:
-			print(collector)
-		print("To disable monitor features run with --no-mon flag")
-		print("Exiting..")
-		exit()
-	if BUILDER_STRING.split(":")[0] not in SUPPORTED_GENERATORS:
-		print("Error: BUILDER_STRING builder not supported")
-		print("Supported builders are:")
-		for generator in SUPPORTED_GENERATORS:
-			print(generator)
-		print("Exiting..")
-		exit()
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--no-mon", action="store_true",
+                      help="Disable monitor features")
+  parser.add_argument("-v", "--verbose", action="store_true",
+                      help="Prints more about what's happening.")
+  parser.add_argument("--source-string", help="Specifies collection source")
+  parser.add_argument("--mon-string", help="Specifies mon access")
+  parser.add_argument("--build-string", help="Specifies builder tool")
+  parser.add_argument(
+      "--honeyfile", help="Path to honeyfile.  The docx file to be used as bait.")
+  parser.add_argument(
+      "--targetfile", help="Path to target file.  One name per line")
+  parser.add_argument(
+      "--allowlist", help="Path to allowlist.  Internal IPs to ignore")
+  parser.add_argument("--campaign", help="Campaign name")
 
-	menu="""
+  args = parser.parse_args()
+
+  if args.mon_string:
+    MON_STRING = args.mon_string
+
+  if args.build_string:
+    BUILDER_STRING = args.build_string
+
+  if args.source_string:
+    SOURCE_STRING = args.source_string
+
+  if args.honeyfile:
+    HONEYFILE = args.honeyfile
+
+  if args.targetfile:
+    TARGETFILE = args.targetfile
+
+  if args.allowlist:
+    append_allowlist(allowlist)
+
+  if args.campaign:
+    CAMPAIGN = args.campaign
+
+  if args.verbose:
+    VERBOSE = True
+
+  if not args.no_mon and MON_STRING == None:
+    print("Error: MON_STRING not set")
+    print("Please modify script to set MON_STRING")
+    print("Alternatively you can specify on command line")
+    print("Use: --mon-string=\"<monstring>\"")
+    print("Or, disable mon features with --no-mon")
+    print("Exiting..")
+    exit()
+
+  if SOURCE_STRING == None:
+    print("Error: SOURCE_STRING not set")
+    print("Please modify script to set SOURCE_STRING")
+    print("Alternatively you can specify on command line")
+    print("Use: --source-string=\"<sourcestring>\"")
+    print("Exiting..")
+    exit()
+
+  if BUILDER_STRING == None:
+    print("Error: BUILDER_STRING not set")
+    print("Please modify script to set BUILDER_STRING")
+    print("Alternatively you can specify on command line")
+    print("Use: --build-string=\"<buildstring>\"")
+    print("Exiting..")
+    exit()
+
+  if not args.no_mon and MON_STRING.split(":")[0] not in SUPPORTED_COLLECTORS:
+    print("Error: MON_STRING collector not supported")
+    print("Supported collectors are:")
+    for collector in SUPPORTED_COLLECTORS:
+      print(collector)
+    print("To disable monitor features run with --no-mon flag")
+    print("Exiting..")
+    exit()
+  if BUILDER_STRING.split(":")[0] not in SUPPORTED_GENERATORS:
+    print("Error: BUILDER_STRING builder not supported")
+    print("Supported builders are:")
+    for generator in SUPPORTED_GENERATORS:
+      print(generator)
+    print("Exiting..")
+    exit()
+
+  menu = """
 	#######################################
 	## MOLEHUNT V1.0 Promethean Info Sec ##
 	#######################################
 	"""
 
-	welcome = """
+  welcome = """
 	Welcome, for help type "help".
 	"""
 
-	print(menu)
+  print(menu)
 
-	print(welcome)
+  print(welcome)
 
-	read_loop()
-	
-	
+  read_loop()
