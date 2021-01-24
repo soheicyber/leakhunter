@@ -29,17 +29,17 @@ class Core:
     self.module_initializers = self._get_initializers()
     self.prompt = ">>>"
     self._loaded_module = "none"
-    self.aliases = {"print":"echo"}
+    self.aliases = {"print": "echo"}
     self._core_commands = CoreCommands()
 
     self.core_commands_map = {
         "echo": self._core_commands.echo,
-      }
-    
+    }
+
     self.exit_commands_list = [
-      "exit",
-      "quit", 
-      "leave",
+        "exit",
+        "quit",
+        "leave",
     ]
 
     if modules:
@@ -50,7 +50,7 @@ class Core:
     for module in modules:
       self._load_module(module)
 
-    if len(modules) == 1: 
+    if len(modules) == 1:
       self._loaded_module = modules[0].__name__
 
   def load_aliases_from_file(self, filepath: str) -> bool:
@@ -73,10 +73,12 @@ class Core:
   def _load_module(self, module: CoreModule = None) -> None:
     """Load a module."""
     if not self._is_valid_module(module):
-      raise InvalidModuleError("Could not load module {module}".format(module=module))
-    
+      raise InvalidModuleError(
+          "Could not load module {module}".format(module=module))
+
     if module.__name__ in self.modules.keys():
-      raise AttemptedDoubleImport("Attempted to import a module with name {module} twice.".format(module=module.__name__))
+      raise AttemptedDoubleImport(
+          "Attempted to import a module with name {module} twice.".format(module=module.__name__))
 
     self.modules[module.__name__] = module(**self.module_initializers)
 
@@ -86,7 +88,7 @@ class Core:
       return False
     if not getattr(module, "__name__"):
       return False
-    
+
     return True
 
   def _get_initializers(self) -> Dict:
@@ -102,11 +104,14 @@ class Core:
 
   def _loop(self) -> None:
     """Loop to continually take input from the user."""
-    while True:
-      r = input(self._get_prompt())
-      if not self._process_input(r):
-        break
-      
+    try:
+      while True:
+        r = input(self._get_prompt())
+        if not self._process_input(r):
+          break
+    except KeyboardInterrupt:
+      print("\nExiting..")
+      return
 
   def _process_input(self, r: str) -> bool:
     """Process the user's input and pass to internal functions."""
@@ -121,7 +126,8 @@ class Core:
     elif com in self.core_commands_map.keys():
       self.core_commands_maps[com](*args)
     elif com in self.modules[self._loaded_module].get_commands().keys():
-      self._get_loaded_module().get_commands()[com](self._get_loaded_module(), *args)
+      self._get_loaded_module().get_commands()[com](
+          self._get_loaded_module(), *args)
     else:
       print(UNKNOWN_COMMAND_MSG)
     return True
@@ -140,5 +146,5 @@ class Core:
 
   def _get_prompt(self) -> str:
     if not self._get_loaded_module().append_prompt and not isinstance(self._get_loaded_module().append_prompt, str):
-      return "{module}{prompt} ".format(module=self._loaded_module, prompt=self.prompt) 
+      return "{module}{prompt} ".format(module=self._loaded_module, prompt=self.prompt)
     return "{module}-{append}{prompt}".format(module=self._loaded_module, append=self._get_loaded_module().append_prompt, prompt=self.prompt)

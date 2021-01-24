@@ -25,8 +25,6 @@ import time
 import sqlite3
 import socket
 
-SUPPORTED_GENERATORS = ["docz"]
-
 ALLOWLIST = ["127.0.0.1"]
 
 DEFAULT_PORT = 5578
