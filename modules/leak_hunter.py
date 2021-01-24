@@ -24,8 +24,11 @@ import subprocess
 import time
 import sqlite3
 import socket
+import furl
 
-ALLOWLIST = ["127.0.0.1"]
+ALLOWLIST = []
+
+DOCZ_PATH = "docz/docz.py"
 
 DEFAULT_PORT = 5578
 DEFAULT_ADDR = "0.0.0.0"
@@ -63,7 +66,7 @@ class LeakHunter(CoreModule):
 
     folder = os.path.join(CAMPAIGNDIR, self.campaign)
     if not os.path.exists(folder):
-      os.system("mkdir -p {campaign}".format(campaign=folder))
+      os.system("mkdir -p {campaign}/injected".format(campaign=folder))
 
     target_list = os.path.join(CAMPAIGNDIR, self.campaign, "target_list")
     if not os.path.exists(target_list):
@@ -229,19 +232,78 @@ class LeakHunter(CoreModule):
         if addr in ALLOWLIST:
           continue
 
-        print("Connection from: {addr}".format(addr=addr))
-
         data = c.recv(1024)
         c.close()
+
+        verb = None
+        args = None
+        try:
+          lines = data.split(b"\r\n")
+          req = lines[0]
+          verb, args, _ = req.split()
+        except IndexError:
+          attribution = "Unable to parse"
+
+        if verb and args:
+          if verb not in [b"GET"]:
+            attribution = "Unable to parse"
+
+        # TODO Add agent checking to reduce noise.
+        attribution = "Attributed to {target}".format(
+            target=self.attribute_to_target(furl.furl(args).args['target'].replace("'", "")))
+
+        print(
+            "Connection from: {addr} -> {attribution}".format(addr=addr, attribution=attribution))
+
     except KeyboardInterrupt:
       print("Stop listening...")
       return
+
+  def get_url(self) -> str:
+    return "http://{la}:{lp}/".format(la=self.listen_addr, lp=self.listen_port)
+
+  def attribute_to_target(self, id: str) -> str:
+    # TODO reverse dictionary for speed with large numbers of lookups.
+    for t, i in self.target_list.items():
+      if i == id:
+        return t
+    return "Unknown"
 
   def inject(self) -> None:
     if not self.campaign:
       print("Must load a campaign first.")
       return
+
+    if not self.target_file:
+      print("We need a target file before we can inject into it.")
+      print("Please set with set_target_file")
+      return
+
+    if not self.listen_addr or not self.listen_port:
+      print("We need a listen address and port, please set both first.")
+      return
+
+    if not self.target_list:
+      print("Please add some targets first...")
+      return
+
+    for target, id in self.target_list.items():
+      target = target.strip().replace(" ", "_")
+      id = id.strip()
+      self.docz(self.target_file, self.get_url(), id, target,
+                self.campaign)
+
+    print("Injection complete...")
+    print(
+        "Files saved to: campaign/{campaign}/injected".format(campaign=self.campaign))
     return
+
+  def docz(self, template_file, url, id, target, campaign):
+
+    out = subprocess.check_output(
+        "python3 " + DOCZ_PATH + " -f templates/" + template_file + " -u " + url + " -a leakhunter" + " -t" + str(id), shell=True)
+    out1 = subprocess.check_output(
+        "mv -f ./output.docx campaign/" + str(self.campaign) + "/injected/" + str(target) + ".docx", shell=True)
 
 
 ###################################################
@@ -519,41 +581,3 @@ class DeleteTarget(ModuleCommand):
 #######################
 # End command section #
 #######################
-
-
-def embed(SOST, EMB):
-  return SOST.replace("::ID", EMB)
-
-
-def docz(FINA, SOST, EMB, NIM, CAMP, PATH):
-  SOST = embed(SOST, EMB)
-  SOST = SOST.replace("\\", "").replace("&", "\\&")
-  if VERBOSE:
-    print("Creating file for: %s" % NIM)
-    print("Unique file id is: %s" % EMB)
-    print("Connection string: %s" % SOST)
-
-  out = subprocess.check_output(
-      "python " + PATH + " " + FINA + " " + SOST, shell=True)
-  if VERBOSE:
-    print(out)
-  out1 = subprocess.check_output(
-      "mv ./output.docx campaign/" + str(CAMP) + "/" + str(NIM) + ".docx", shell=True)
-
-
-def generate():
-  if not check_launch():
-    return
-
-  if not os.path.exists("campaign/%s" % CAMPAIGN):
-    subprocess.check_output("mkdir campaign/%s" % CAMPAIGN, shell=True)
-
-  for pair in parse_targets():
-    this_name, this_id = pair.split("::")
-    this_name = this_name.strip().replace(" ", "_")
-    this_id = this_id.strip()
-    docz(HONEYFILE, SOURCE_STRING, this_id, this_name,
-         CAMPAIGN, BUILDER_STRING.split(":")[1])
-  print("Generation complete...")
-  print("Files saved to: %s/%s" % ("campaign", CAMPAIGN))
-  return

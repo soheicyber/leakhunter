@@ -1,2 +1,3 @@
 attrdict
 stringcase
+furl
