@@ -55,6 +55,7 @@ class Core:
 
   def load_aliases_from_file(self, filepath: str) -> bool:
     """With a provided alias file, load all aliases."""
+    added_alias = False
     with open(filepath, 'r') as f:
       content = f.read()
     for line in content.split("\n"):
@@ -65,10 +66,13 @@ class Core:
         if not len(splitted) == 2:
           continue
         self._load_alias(splitted[0], splitted[1])
+        added_alias = True
+    
+    return added_alias
 
   def _load_alias(self, alias: str, command: str) -> None:
     """Add an alias to the list of aliases."""
-    self.aliases[alias] = command
+    self.aliases[alias.strip()] = command.strip()
 
   def _load_module(self, module: CoreModule = None) -> None:
     """Load a module."""

@@ -1,3 +1,5 @@
 attrdict
 stringcase
 furl
+mock
+pyfakefs
