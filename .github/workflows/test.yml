@@ -22,4 +22,4 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Run listed unittests
-        run: python3 core_test.py 
+        run: python3 core_test.py && python3 core_module_test.py
