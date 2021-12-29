@@ -30,7 +30,7 @@ class CoreModule:
 
     def __init__(self, env=None, commands: List = None):
         if not commands:
-            commands = list(ModuleCommand)
+            commands = [ModuleCommand]
         self.core_env = env
         self.commands = {}
         self.append_prompt = None
