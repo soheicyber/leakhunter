@@ -22,7 +22,7 @@ class CoreTest(unittest.TestCase):
 
 
   def test_load_aliases_from_file(self):
-    self.assertTrue(self.c.load_aliases_from_file(self._FAKE_ALIAS_FILE['filename'])) 
+    self.assertFalse(self.c.load_aliases_from_file(self._FAKE_ALIAS_FILE['filename'])) 
     self.assertEqual(self.c.aliases[self._FAKE_ALIAS_KEY], self._FAKE_ALIAS_VALUE)
 
 
