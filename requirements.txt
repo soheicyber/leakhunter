@@ -3,3 +3,4 @@ stringcase
 furl
 mock
 pyfakefs
+bandit
