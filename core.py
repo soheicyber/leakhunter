@@ -1,154 +1,167 @@
+"""Core of the framework."""
+from typing import Optional, List, Dict
 import sys
+
+from attrdict import AttrDict
 
 from core_module import CoreModule
 from core_commands import CoreCommands
-from attrdict import AttrDict
-
-from typing import Optional, List, Dict
 
 
 UNKNOWN_COMMAND_MSG = "Unknown command"
 
 
 class Error(Exception):
-  """Base error class."""
+    """Base error class."""
 
 
 class InvalidModuleError(Error):
-  """Invalid modules attempted to load."""
+    """Invalid modules attempted to load."""
+
+
+class AttemptedDoubleImport(Error):
+    """If a module was attempted to be loaded again."""
 
 
 class Core:
-  """This is the core of the framework."""
+    """This is the core of the framework."""
 
-  def __init__(self, modules: Optional[List[CoreModule]] = None) -> None:
-    """Initialize the core."""
-    self.env = {}
+    def __init__(self, modules: Optional[List[CoreModule]] = None) -> None:
+        """Initialize the core."""
+        self.env = {}
 
-    self.modules = AttrDict(none=None)
-    self.module_initializers = self._get_initializers()
-    self.prompt = ">>>"
-    self._loaded_module = "none"
-    self.aliases = {"print": "echo"}
-    self._core_commands = CoreCommands()
+        self.modules = AttrDict(none=None)
+        self.module_initializers = self._get_initializers()
+        self.prompt = ">>>"
+        self._loaded_module = "none"
+        self.aliases = {"print": "echo"}
+        self._core_commands = CoreCommands()
 
-    self.core_commands_map = {
-        "echo": self._core_commands.echo,
-    }
+        self.core_commands_map = {
+            "echo": self._core_commands.echo,
+        }
 
-    self.exit_commands_list = [
-        "exit",
-        "quit",
-        "leave",
-    ]
+        self.exit_commands_list = [
+            "exit",
+            "quit",
+            "leave",
+        ]
 
-    if modules:
-      self._load_modules(modules)
+        if modules:
+            self._load_modules(modules)
 
-  def _load_modules(self, modules: List[CoreModule]) -> None:
-    """Load the modules provided."""
-    for module in modules:
-      self._load_module(module)
+    def _load_modules(self, modules: List[CoreModule]) -> None:
+        """Load the modules provided."""
+        for module in modules:
+            self._load_module(module)
 
-    if len(modules) == 1:
-      self._loaded_module = modules[0].__name__
+        if len(modules) == 1:
+            self._loaded_module = modules[0].__name__
 
-  def load_aliases_from_file(self, filepath: str) -> bool:
-    """With a provided alias file, load all aliases."""
-    added_alias = False
-    with open(filepath, 'r') as f:
-      content = f.read()
-    for line in content.split("\n"):
-      if ":" in line:
-        splitted = line.split(":")
-        if not splitted:
-          continue
-        if not len(splitted) == 2:
-          continue
-        self._load_alias(splitted[0], splitted[1])
-        added_alias = True
-    
-    return added_alias
+    def load_aliases_from_file(self, filepath: str) -> bool:
+        """With a provided alias file, load all aliases."""
+        added_alias = False
+        with open(filepath, 'r') as f:
+            content = f.read()
+        for line in content.split("\n"):
+            if ":" in line:
+                splitted = line.split(":")
+                if not splitted:
+                    continue
+                if not len(splitted) == 2:
+                    continue
+                self._load_alias(splitted[0], splitted[1])
+                added_alias = True
 
-  def _load_alias(self, alias: str, command: str) -> None:
-    """Add an alias to the list of aliases."""
-    self.aliases[alias.strip()] = command.strip()
+        return added_alias
 
-  def _load_module(self, module: CoreModule = None) -> None:
-    """Load a module."""
-    if not self._is_valid_module(module):
-      raise InvalidModuleError(
-          "Could not load module {module}".format(module=module))
+    def _load_alias(self, alias: str, command: str) -> None:
+        """Add an alias to the list of aliases."""
+        self.aliases[alias.strip()] = command.strip()
 
-    if module.__name__ in self.modules.keys():
-      raise AttemptedDoubleImport(
-          "Attempted to import a module with name {module} twice.".format(module=module.__name__))
+    def _load_module(self, module: CoreModule = None) -> None:
+        """Load a module."""
+        if not self._is_valid_module(module):
+            raise InvalidModuleError(
+                "Could not load module {module}".format(module=module))
 
-    self.modules[module.__name__] = module(**self.module_initializers)
+        if module.__name__ in self.modules.keys():
+            raise AttemptedDoubleImport(
+                "Attempted to import a module with name {module} twice.".format(module=module.__name__))
 
-  def _is_valid_module(self, module: CoreModule) -> bool:
-    """Determine if the module is valid."""
-    if not issubclass(module, CoreModule):
-      return False
-    if not getattr(module, "__name__"):
-      return False
+        self.modules[module.__name__] = module(**self.module_initializers)
 
-    return True
+    @staticmethod
+    def _is_valid_module(module: CoreModule) -> bool:
+        """Determine if the module is valid."""
+        if not issubclass(module, CoreModule):
+            return False
+        if not getattr(module, "__name__"):
+            return False
 
-  def _get_initializers(self) -> Dict:
-    """Configuration data to pass to all modules."""
-    return {"env": self.env}
+        return True
 
-  def bootstrap(self, *args: str) -> None:
-    """Launch the loaded module(s)."""
-    for arg in args:
-      print(arg)
+    def _get_initializers(self) -> Dict:
+        """Configuration data to pass to all modules."""
+        return {"env": self.env}
 
-    self._loop()
+    def bootstrap(self, *args: str) -> None:
+        """Launch the loaded module(s)."""
+        for arg in args:
+            print(arg)
 
-  def _loop(self) -> None:
-    """Loop to continually take input from the user."""
-    try:
-      while True:
-        r = input(self._get_prompt())
-        if not self._process_input(r):
-          break
-    except KeyboardInterrupt:
-      print("\nExiting..")
-      return
+        self._loop()
 
-  def _process_input(self, r: str) -> bool:
-    """Process the user's input and pass to internal functions."""
-    s = r.split()
-    if not s:
-      return True
-    com = self._alias_check(s[0])
-    args = s[1:]
+    def _loop(self) -> None:
+        """Loop to continually take input from the user."""
+        try:
+            while True:
+                r = input(self._get_prompt())
+                if not self._process_input(r):
+                    break
+        except KeyboardInterrupt:
+            print("\nExiting..")
+            return
 
-    if com in self.exit_commands_list:
-      self._exit()
-    elif com in self.core_commands_map.keys():
-      self.core_commands_maps[com](*args)
-    elif com in self.modules[self._loaded_module].get_commands().keys():
-      self._get_loaded_module().get_commands()[com](
-          self._get_loaded_module(), *args)
-    else:
-      print(UNKNOWN_COMMAND_MSG)
-    return True
+    def _process_input(self, inp: str) -> bool:
+        """Process the user's input and pass to internal functions."""
+        spl = inp.split()
+        if not spl:
+            return True
+        com = self._alias_check(spl[0])
+        args = spl[1:]
 
-  def _get_loaded_module(self) -> CoreModule:
-    """Get the list of of loaded modules."""
-    return self.modules[self._loaded_module]
+        if com in self.exit_commands_list:
+            self._exit()
+        elif com in self.core_commands_map.keys():
+            self.core_commands_map[com](*args)
+        elif com in self.modules[self._loaded_module].get_commands().keys():
+            self._get_loaded_module().get_commands()[com](
+                self._get_loaded_module(), *args)
+        else:
+            print(UNKNOWN_COMMAND_MSG)
+        return True
 
-  def _exit(self) -> None:
-    """Abstraction for future - cleaner exits."""
-    exit()
+    def _get_loaded_module(self) -> CoreModule:
+        """Get the list of of loaded modules."""
+        return self.modules[self._loaded_module]
 
-  def _alias_check(self, s: str) -> str:
-    """See if there is an alias registered for the command."""
-    return self.aliases.get(s, s)
+    @staticmethod
+    def _exit(code: int) -> None:
+        """Abstraction for future - cleaner exits."""
+        sys.exit(code if code else
+                 0)
 
-  def _get_prompt(self) -> str:
-    if not self._get_loaded_module().append_prompt and not isinstance(self._get_loaded_module().append_prompt, str):
-      return "{module}{prompt} ".format(module=self._loaded_module, prompt=self.prompt)
-    return "{module}-{append}{prompt}".format(module=self._loaded_module, append=self._get_loaded_module().append_prompt, prompt=self.prompt)
+    def _alias_check(self, process: str) -> str:
+        """See if there is an alias registered for the command."""
+        return self.aliases.get(process, process)
+
+    def _get_prompt(self) -> str:
+        if not (self._get_loaded_module().append_prompt
+                and not isinstance(self._get_loaded_module().append_prompt, str)):
+            return "{module}{prompt} ".format(module=self._loaded_module, prompt=self.prompt)
+        return ("{module}-{append}{prompt}"
+                .format(
+                    module=self._loaded_module,
+                    append=self._get_loaded_module().append_prompt,
+                    prompt=self.prompt))
