@@ -65,41 +65,41 @@ if __name__ == "__main__":
   addrel = connstring.replace("&", "&#38;")
   rel = REL + '"' + addrel + '" />'
 
-  os.system("mkdir docz_tmp")
-  os.system("unzip {file} -d docz_tmp".format(file=args.file))
+  subprocess.call(["mkdir", "docz_tmp"])
+  subprocess.call(["unzip", "{file}".format(file=args.file), "-d", "docz_tmp")
 
-  document = open("docz_tmp/word/document.xml", "r")
-  document_data = document.read()
+  document= open("docz_tmp/word/document.xml", "r")
+  document_data= document.read()
   document.close()
 
-  temp = document_data.split("</w:body>")
+  temp= document_data.split("</w:body>")
   temp.append("</w:body>" + temp[1])
-  temp[1] = DRAWING
+  temp[1]= DRAWING
 
-  document_data = "".join(temp)
+  document_data= "".join(temp)
 
-  document = open("docz_tmp/word/document.xml", "w")
+  document= open("docz_tmp/word/document.xml", "w")
   document.write(document_data)
   document.close()
 
-  rels = open("docz_tmp/word/_rels/document.xml.rels", "r")
-  rels_data = rels.read()
+  rels= open("docz_tmp/word/_rels/document.xml.rels", "r")
+  rels_data= rels.read()
   rels.close()
 
-  temp = rels_data.split("</Relationships>")
+  temp= rels_data.split("</Relationships>")
   temp.append(rel)
   temp.append("</Relationships>")
 
-  rels_data = "".join(temp)
+  rels_data= "".join(temp)
 
-  rels = open("docz_tmp/word/_rels/document.xml.rels", "w")
+  rels= open("docz_tmp/word/_rels/document.xml.rels", "w")
   rels.write(rels_data)
   rels.close()
 
-  cwd1 = os.getcwd()
-  cwd1 = cwd1 + "/docz_tmp"
+  cwd1= os.getcwd()
+  cwd1= cwd1 + "/docz_tmp"
 
-  p = subprocess.Popen("zip -r output.docx *",
+  p= subprocess.Popen("zip -r output.docx *",
                        stdout=None, shell=True, cwd=cwd1)
   p.wait()
 
