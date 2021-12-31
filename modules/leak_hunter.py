@@ -19,10 +19,11 @@ import shutil
 import hashlib
 import subprocess
 import socket
+
+from os import path, linesep, listdir, makedirs
+from pathlib import Path as PathlibPath
+
 import furl
-
-from os import path, linesep, listdir
-
 from core_module import CoreModule, ModuleCommand
 
 
@@ -79,14 +80,13 @@ class LeakHunter(CoreModule):
         self.listen_port = DEFAULT_PORT
 
         if not path.exists(LOGDIR):
-            subprocess.call(["mkdir", "-p", "{logdir}".format(logdir=LOGDIR)])
+            makedirs("{logdir}".format(logdir=LOGDIR), exist_ok=True)
         if not path.exists(path.join(LOGDIR, LOGFILE)):
-            subprocess.call(["touch", "{logfile}".format(
-                logfile=path.join(LOGDIR, LOGFILE))]
-            )
+            PathlibPath("{logfile}".format(
+                logfile=path.join(LOGDIR, LOGFILE))
+            ).touch()
         if not path.exists(CAMPAIGNDIR):
-            subprocess.call(
-                ["mkdir", "-p", "{campaign}".format(campaign=CAMPAIGNDIR)])
+            makedirs("{campaign}".format(campaign=CAMPAIGNDIR), exist_ok=True)
 
     def save_campaign(self) -> None:
         """Save the state of a campaign."""
@@ -95,13 +95,13 @@ class LeakHunter(CoreModule):
 
         folder = path.join(CAMPAIGNDIR, self.campaign)
         if not path.exists(folder):
-            subprocess.call(
-                ["mkdir", "-p", "{campaign}/injected".format(campaign=folder)])
+            makedirs("{campaign}/injected".format(campaign=folder),
+                     exist_ok=True)
 
         target_list = path.join(CAMPAIGNDIR, self.campaign, "target_list")
         if not path.exists(target_list):
-            subprocess.call(
-                ["touch", "{target_list}".format(target_list=target_list)])
+            PathlibPath("{target_list}".format(
+                target_list=target_list)).touch()
 
         with open(target_list, "w") as open_file:
             for target, token in self.target_list.items():
@@ -113,14 +113,14 @@ class LeakHunter(CoreModule):
         listen_addr_file = path.join(
             CAMPAIGNDIR, self.campaign, "listen_addr_file")
         if not path.exists(target_file):
-            subprocess.call(
-                ["touch", "{target_file}".format(target_file=target_file)])
+            PathlibPath("{target_file}".format(
+                target_file=target_file)).touch()
         if not path.exists(listen_port_file):
-            subprocess.call(["touch", "{listen_port_file}".format(
-                listen_port_file=listen_port_file)])
+            PathlibPath("{listen_port_file}".format(
+                listen_port_file=listen_port_file)).touch()
         if not path.exists(listen_addr_file):
-            subprocess.call(["touch", "{listen_addr_file}".format(
-                listen_addr_file=listen_addr_file)])
+            PathlibPath("touch", "{listen_addr_file}".format(
+                listen_addr_file=listen_addr_file)).touch()
 
         with open(target_file, 'w') as open_file:
             open_file.write(str(self.target_file))
@@ -358,15 +358,12 @@ class LeakHunter(CoreModule):
              "leakhunter",
              " -t",
              str(id_value)])
-        subprocess.call(
-            ["mv",
-             "-f",
-             "./output.docx",
-             "campaign/{campaign}/injected/{target}.docx".format(
-                 campaign=str(self.campaign),
-                 target=str(target)
-             )
-             ]
+        shutil.move(
+            "./output.docx",
+            "campaign/{campaign}/injected/{target}.docx".format(
+                campaign=str(self.campaign),
+                target=str(target)
+            )
         )
 
 
