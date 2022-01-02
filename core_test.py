@@ -12,8 +12,8 @@ class CoreTest(unittest.TestCase):
 
     _FAKE_ALIAS_KEY = 'test'
     _FAKE_ALIAS_VALUE = 'tests'
-    _FAKE_ALIAS_FILE = {'filename': 'fake_aliases', 'content': '{key}: {value}'.format(
-        key=_FAKE_ALIAS_KEY, value=_FAKE_ALIAS_VALUE)}
+    _FAKE_ALIAS_FILE = {'filename': 'fake_aliases',
+                        'content': f'{_FAKE_ALIAS_KEY}: {_FAKE_ALIAS_VALUE}'}
 
     def setUp(self):
         self.core = Core()
