@@ -64,7 +64,7 @@ class Core:
     def load_aliases_from_file(self, filepath: str) -> bool:
         """With a provided alias file, load all aliases."""
         added_alias = False
-        with open(filepath, 'r') as working_file:
+        with open(filepath, 'r', encoding='utf-8') as working_file:
             content = working_file.read()
         for line in content.split("\n"):
             if ":" in line:
@@ -86,12 +86,11 @@ class Core:
         """Load a module."""
         if not self._is_valid_module(module):
             raise InvalidModuleError(
-                "Could not load module {module}".format(module=module))
+                f"Could not load module {module}")
 
         if module.__name__ in self.modules.keys():
             raise AttemptedDoubleImport(
-                "Attempted to import a module with name {module} twice."
-                .format(module=module.__name__))
+                f"Attempted to import a module with name {module.__name__} twice.")
 
         self.modules[module.__name__] = module(**self.module_initializers)
 
@@ -136,7 +135,7 @@ class Core:
 
         if com in self.exit_commands_list:
             self._exit()
-        elif com in self.core_commands_map.keys():
+        elif com in self.core_commands_map:
             self.core_commands_map[com](*args)
         elif com in self.modules[self._loaded_module].get_commands().keys():
             self._get_loaded_module().get_commands()[com](
@@ -161,9 +160,5 @@ class Core:
     def _get_prompt(self) -> str:
         if not (self._get_loaded_module().append_prompt
                 and not isinstance(self._get_loaded_module().append_prompt, str)):
-            return "{module}{prompt} ".format(module=self._loaded_module, prompt=self.prompt)
-        return ("{module}-{append}{prompt}"
-                .format(
-                    module=self._loaded_module,
-                    append=self._get_loaded_module().append_prompt,
-                    prompt=self.prompt))
+            return f"{self.loaded_module}{self.prompt} "
+        return (f"{self.loaded_module}-{self._get_loaded_module().append_prompt}{self.prompt}")
