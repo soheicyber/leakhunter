@@ -147,10 +147,9 @@ class Core:
         return self.modules[self._loaded_module]
 
     @staticmethod
-    def _exit(code: int) -> None:
+    def _exit(code: int = 0) -> None:
         """Abstraction for future - cleaner exits."""
-        sys.exit(code if code else
-                 0)
+        sys.exit(code)
 
     def _alias_check(self, process: str) -> str:
         """See if there is an alias registered for the command."""

@@ -9,9 +9,9 @@ from typing import Optional
 TEMP_FOLDER = "docz_tmp"
 OUTPUT_FILENAME = "output.docx"
 
-REL = '<Relationship TargetMode="External" ' +
-'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"' +
-' Id="rId1337" Target='
+REL = '<Relationship TargetMode="External" ' + \
+    'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"' + \
+    ' Id="rId1337" Target='
 
 DRAWING = """<w:drawing mc:Ignorable="w14 wp14">
 	<wp:inline distT="0" distB="0" distL="0" distR="0">
