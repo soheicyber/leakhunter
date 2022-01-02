@@ -17,7 +17,6 @@ you know who leaked the document.
 import time
 import shutil
 import hashlib
-import subprocess
 import socket
 
 from os import path, linesep, listdir, makedirs
@@ -25,11 +24,10 @@ from pathlib import Path as PathlibPath
 
 import furl
 from core_module import CoreModule, ModuleCommand
+from docz.docz import Docz
 
 
 ALLOWLIST = []
-
-DOCZ_PATH = "docz/docz.py"
 
 DEFAULT_PORT = 5578
 DEFAULT_ADDR = "127.0.0.1"
@@ -338,26 +336,19 @@ class LeakHunter(CoreModule):
         for target, target_id in self.target_list.items():
             target = target.strip().replace(" ", "_")
             target_id = target_id.strip()
-            self.docz(self.target_file, self.get_url(), target_id, target)
+            self.call_docz(self.target_file, self.get_url(), target_id, target)
 
         print("Injection complete...")
         print(
             "Files saved to: campaign/{campaign}/injected".format(campaign=self.campaign))
         return
 
-    def docz(self, template_file: str, url: str, id_value: str, target: str) -> None:
+    def call_docz(self, template_file: str, url: str, id_value: str, target: str) -> None:
         """This method calls the docz subprocess to edit a single file."""
-        subprocess.call(
-            ["python3 ",
-             DOCZ_PATH,
-             "-f",
-             "templates/{template}".format(template=template_file),
-             "-u",
+        Docz("templates/{template}".format(template=template_file),
              url,
-             "-a",
              "leakhunter",
-             " -t",
-             str(id_value)])
+             str(id_value)).run()
         shutil.move(
             "./output.docx",
             "campaign/{campaign}/injected/{target}.docx".format(
@@ -394,7 +385,7 @@ class Help(ModuleCommand):
         print("--------")
         return
 
-    @staticmethod
+    @ staticmethod
     def help(*args, **kwargs) -> str:
         return "The help method."
 
@@ -413,7 +404,7 @@ class SetCampaign(ModuleCommand):
         mod.append_prompt = mod.campaign
         mod.load_campaign()
 
-    @staticmethod
+    @ staticmethod
     def help(*args, **kwargs) -> str:
         return "Set the campaign you are running."
 
@@ -430,7 +421,7 @@ class ShowCampaigns(ModuleCommand):
 
         mod.list_campaigns()
 
-    @staticmethod
+    @ staticmethod
     def help(*args, **kwargs) -> str:
         return "List all available campaigns"
 
@@ -447,7 +438,7 @@ class DeleteCampaign(ModuleCommand):
 
         mod.delete_campaign(args[0])
 
-    @staticmethod
+    @ staticmethod
     def help(*args, **kwargs) -> str:
         return "Delete a campaign and all associated data."
 
@@ -464,7 +455,7 @@ class ShowTemplateFiles(ModuleCommand):
 
         mod.show_template_files()
 
-    @staticmethod
+    @ staticmethod
     def help(*args, **kwargs) -> str:
         return "List the files available for use in a campaign."
 
@@ -489,7 +480,7 @@ class SetListenAddress(ModuleCommand):
         mod.set_listen_addr(addr)
         mod.save_campaign()
 
-    @staticmethod
+    @ staticmethod
     def help(*args, **kwargs) -> str:
         return "Set the address we will call back to."
 
@@ -501,7 +492,7 @@ class ShowListenAddress(ModuleCommand):
         super().__init__(*args, **kwargs)
         mod.show_listen_addr()
 
-    @staticmethod
+    @ staticmethod
     def help(*args, **kwargs) -> str:
         return "Show the currently set address we will call back to."
 
@@ -528,7 +519,7 @@ class SetListenPort(ModuleCommand):
         mod.set_listen_port(port)
         mod.save_campaign()
 
-    @staticmethod
+    @ staticmethod
     def help(*args, **kwargs) -> str:
         return "Set the port we will call back to."
 
@@ -540,7 +531,7 @@ class ShowListenPort(ModuleCommand):
         super().__init__(*args, **kwargs)
         mod.show_listen_port()
 
-    @staticmethod
+    @ staticmethod
     def help(*args, **kwargs) -> str:
         return "Show the currently set port we will call back to."
 
@@ -557,7 +548,7 @@ class SetTargetFile(ModuleCommand):
         mod.set_target_file(args[0])
         mod.save_campaign()
 
-    @staticmethod
+    @ staticmethod
     def help(*args, **kwargs) -> str:
         return "Set the target file for a campaign"
 
@@ -573,7 +564,7 @@ class ShowTargetFile(ModuleCommand):
 
         mod.show_target_file()
 
-    @staticmethod
+    @ staticmethod
     def help(*args, **kwargs) -> str:
         return "Show the currently selected file."
 
@@ -585,7 +576,7 @@ class CheckLaunch(ModuleCommand):
         super().__init__(*args, **kwargs)
         print(mod.launched)
 
-    @staticmethod
+    @ staticmethod
     def help(*args, **kwargs):
         return "CheckLaunch command indicates if a campaign is running."
 
@@ -601,7 +592,7 @@ class LaunchListener(ModuleCommand):
 
         mod.listen()
 
-    @staticmethod
+    @ staticmethod
     def help(*args, **kwargs):
         return "Launch the listener to wait for callbacks from our documents."
 
@@ -613,7 +604,7 @@ class LaunchInjection(ModuleCommand):
         super().__init__(*args, **kwargs)
         mod.inject()
 
-    @staticmethod
+    @ staticmethod
     def help(*args, **kwargs):
         return "Inject the web bug into the template document(s)."
 
@@ -639,7 +630,7 @@ class AddTarget(ModuleCommand):
         mod.save_campaign()
         return
 
-    @staticmethod
+    @ staticmethod
     def help(*args, **kwargs) -> str:
         return "Add a target to the list of targets."
 
@@ -655,7 +646,7 @@ class ShowTargets(ModuleCommand):
                 id=i, target=list(mod.target_list.keys())[i]))
         print("----------")
 
-    @staticmethod
+    @ staticmethod
     def help(*args, **kwargs) -> str:
         return "The list of targets as currently loaded."
 
@@ -680,7 +671,7 @@ class DeleteTarget(ModuleCommand):
         del mod.target_list[mod.target_list.keys()[id_val]]
         mod.save_campaign()
 
-    @staticmethod
+    @ staticmethod
     def help(*args, **kwargs) -> str:
         return "Delete a target from the list."
 

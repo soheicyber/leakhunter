@@ -1,13 +1,17 @@
-#!/usr/bin/env python
+"""Inserts a tracking bug into docx files"""
 
-""" Inserts tracking information into docx files """
+import shutil
 
-import argparse
-import sys
-import os
-import subprocess
+from os import makedirs, getcwd
 
-REL = '<Relationship TargetMode="External" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Id="rId1337" Target='
+from typing import Optional
+
+TEMP_FOLDER = "docz_tmp"
+OUTPUT_FILENAME = "output.docx"
+
+REL = '<Relationship TargetMode="External" ' +
+'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"' +
+' Id="rId1337" Target='
 
 DRAWING = """<w:drawing mc:Ignorable="w14 wp14">
 	<wp:inline distT="0" distB="0" distL="0" distR="0">
@@ -46,63 +50,73 @@ DRAWING = """<w:drawing mc:Ignorable="w14 wp14">
 </w:drawing>"""
 
 
-if __name__ == "__main__":
-  parser = argparse.ArgumentParser(
-      description='A script for embedding webbugs in docx files')
-  parser.add_argument(
-      '-f', '--file', help="The name of the file template to embed the bug in.", required=True)
-  parser.add_argument(
-      '-u', '--url', help='The url to the remote server', required=True)
-  parser.add_argument(
-      '-t', '--target', help='The target identifier', required=True)
-  parser.add_argument(
-      '-a', '--agent', help='The agent identifier', required=True)
+class Docz():
+    """Embeds a webbug in a docx file."""
 
-  args = parser.parse_args()
+    def __init__(self, filename, url, target, agent):
+        # The name of the file template to embed the bug in.
+        self.filename = filename
+        self.url = url  # The url to the listening server
+        self.target = target  # The target identifier
+        self.agent = agent  # The agent identifier
+        self.connstring = "%s?agent=%s&target=%s" % (url, agent, target)
+        self.processing_complete = False
 
-  connstring = "%s?agent=%s&target=%s" % (args.url, args.agent, args.target)
+    def _get_rel(self) -> str:
+        """return the injection value using the connstring."""
+        return REL + '"' + self.connstring.replace("&", "&#38;") + '" />'
 
-  addrel = connstring.replace("&", "&#38;")
-  rel = REL + '"' + addrel + '" />'
+    def _unzip(self):
+        self.processing_complete = False
+        """Unzip the docx file into an archive on disk."""
+        makedirs(TEMP_FOLDER)
+        shutil.unpack_archive("{file}".format(file=self.filename), TEMP_FOLDER)
 
-  subprocess.call(["mkdir", "docz_tmp"])
-  subprocess.call(["unzip", "{file}".format(file=args.file), "-d", "docz_tmp")
+    def _inject(self):
+        """Inject the bug into the docx file."""
+        document_data = ""
+        with open("{tmp}/word/document.xml".format(tmp=TEMP_FOLDER), "r") as document:
+            document_data = document.read()
 
-  document= open("docz_tmp/word/document.xml", "r")
-  document_data= document.read()
-  document.close()
+        temp = document_data.split("</w:body>")
+        temp.append("</w:body>" + temp[1])
+        temp[1] = DRAWING
 
-  temp= document_data.split("</w:body>")
-  temp.append("</w:body>" + temp[1])
-  temp[1]= DRAWING
+        document_data = "".join(temp)
 
-  document_data= "".join(temp)
+        with open("{tmp}/word/document.xml".format(tmp=TEMP_FOLDER), "w") as document:
+            document.write(document_data)
 
-  document= open("docz_tmp/word/document.xml", "w")
-  document.write(document_data)
-  document.close()
+        with open("{tmp}/word/_rels/document.xml.rels".format(tmp=TEMP_FOLDER), "r") as rels:
+            rels_data = rels.read()
 
-  rels= open("docz_tmp/word/_rels/document.xml.rels", "r")
-  rels_data= rels.read()
-  rels.close()
+        temp = rels_data.split("</Relationships>")
+        temp.append(self._get_rel())
+        temp.append("</Relationships>")
 
-  temp= rels_data.split("</Relationships>")
-  temp.append(rel)
-  temp.append("</Relationships>")
+        rels_data = "".join(temp)
 
-  rels_data= "".join(temp)
+        with open("{tmp}/word/_rels/document.xml.rels".format(tmp=TEMP_FOLDER), "w") as rels:
+            rels.write(rels_data)
 
-  rels= open("docz_tmp/word/_rels/document.xml.rels", "w")
-  rels.write(rels_data)
-  rels.close()
+    def _zip(self):
+        """Zip the open archive into docx."""
+        shutil.make_archive(
+            "output.docx", "{cwd}/{tmp}".format(cwd=getcwd(), tmp=TEMP_FOLDER))
 
-  cwd1= os.getcwd()
-  cwd1= cwd1 + "/docz_tmp"
+        shutil.move("{tmp}/output.docx".format(tmp=TEMP_FOLDER),
+                    "./{output}".format(output=OUTPUT_FILENAME))
+        shutil.rmtree(TEMP_FOLDER)
+        self.processing_complete = True
 
-  p= subprocess.Popen("zip -r output.docx *",
-                       stdout=None, shell=True, cwd=cwd1)
-  p.wait()
+    def run(self):
+        """Run the process to unzip, inject, and zip."""
+        self._unzip()
+        self._inject()
+        self._zip()
 
-  os.system(
-      "mv docz_tmp/output.docx ./")
-  os.system("rm -rf docz_tmp")
+    def get_file_location(self) -> Optional[str]:
+        """Return the location of the output file."""
+        if self.processing_complete:
+            return "{cwd}/{out}".format(cwd=getcwd, out=OUTPUT_FILENAME)
+        return None
