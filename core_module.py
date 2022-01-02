@@ -15,11 +15,14 @@ class ModuleCommand:
     @staticmethod
     def help(*args, **kwargs) -> str:
         """Provides help for the command."""
+        del args
+        del kwargs
         return "A help message for this command."
 
     def run(self, *args, **kwargs) -> Any:
         """Process and returns the results of the command."""
-
+        del args
+        del kwargs
         if self.result:
             return self.result
         return "The result of running this command."

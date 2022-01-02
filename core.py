@@ -26,6 +26,9 @@ class AttemptedDoubleImport(Error):
 class Core:
     """This is the core of the framework."""
 
+    # pylint: disable=too-many-instance-attributes
+    # We want to track all of these items.
+
     def __init__(self, modules: Optional[List[CoreModule]] = None) -> None:
         """Initialize the core."""
         self.env = {}
@@ -61,8 +64,8 @@ class Core:
     def load_aliases_from_file(self, filepath: str) -> bool:
         """With a provided alias file, load all aliases."""
         added_alias = False
-        with open(filepath, 'r') as f:
-            content = f.read()
+        with open(filepath, 'r') as working_file:
+            content = working_file.read()
         for line in content.split("\n"):
             if ":" in line:
                 splitted = line.split(":")
@@ -87,7 +90,8 @@ class Core:
 
         if module.__name__ in self.modules.keys():
             raise AttemptedDoubleImport(
-                "Attempted to import a module with name {module} twice.".format(module=module.__name__))
+                "Attempted to import a module with name {module} twice."
+                .format(module=module.__name__))
 
         self.modules[module.__name__] = module(**self.module_initializers)
 
@@ -116,8 +120,7 @@ class Core:
         """Loop to continually take input from the user."""
         try:
             while True:
-                r = input(self._get_prompt())
-                if not self._process_input(r):
+                if not self._process_input(input(self._get_prompt())):
                     break
         except KeyboardInterrupt:
             print("\nExiting..")

@@ -1,14 +1,8 @@
 """The binary which runs the tool LeakHunter."""
-import sys
 import argparse
 
-import six
 from core import Core
 from modules.leak_hunter import LeakHunter
-
-if six.PY2:
-    raise Exception("Please only launch this software with python3.")
-    sys.exit()
 
 
 BANNER = """############################################
