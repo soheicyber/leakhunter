@@ -160,5 +160,5 @@ class Core:
     def _get_prompt(self) -> str:
         if not (self._get_loaded_module().append_prompt
                 and not isinstance(self._get_loaded_module().append_prompt, str)):
-            return f"{self.loaded_module}{self.prompt} "
-        return (f"{self.loaded_module}-{self._get_loaded_module().append_prompt}{self.prompt}")
+            return f"{self._loaded_module}{self.prompt} "
+        return f"{self._loaded_module}-{self._get_loaded_module().append_prompt}{self.prompt}"
