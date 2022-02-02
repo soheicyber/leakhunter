@@ -6,7 +6,7 @@ from modules.leak_hunter import LeakHunter
 
 
 BANNER = """############################################
-## LeakHunter V1.0-Beta from Sohei Cyber  ##
+## LeakHunter V1.1-Beta from Sohei Cyber  ##
 ############################################\n"""
 
 WELCOME_MSG = "Welcome, for help type \"help\"."
