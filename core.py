@@ -68,9 +68,14 @@ class Core:
         if len(modules) == 1:
             self._loaded_module = modules[0].__name__
 
-    def load_aliases_from_file(self, filepath: str) -> bool:
-        """With a provided alias file, load all aliases."""
-        added_alias = False
+    def load_aliases_from_file(self, filepath: str) -> int:
+        """With a provided alias file, load all aliases.
+
+        Expecting a file in the form of:
+        alias:command
+        alias2:command2
+        """
+        added_aliases: int = 0
         with open(filepath, 'r', encoding='utf-8') as working_file:
             content = working_file.read()
         for line in content.split("\n"):
@@ -83,10 +88,10 @@ class Core:
                 self._load_alias(splitted[0], splitted[1])
                 added_alias = True
 
-        return added_alias
+        return added_aliases
 
     def _load_alias(self, alias: str, command: str) -> None:
-        """Add an alias to the list of aliases."""
+        """Load a single alias to the list of aliases - stripping whitespace."""
         self.aliases[alias.strip()] = command.strip()
 
     def _load_module(self, module: CoreModule = None) -> None:
@@ -106,8 +111,10 @@ class Core:
         """Determine if the module is valid."""
         if not issubclass(module, CoreModule):
             return False
-        if not getattr(module, "__name__"):
-            return False
+
+        for attr in (a for a in dir(CoreModule) if not a.startswith("_")):
+            if not hasattr(module, attr):
+                raise InvalidModuleError(f"Module is missing attribute {attr}")
 
         return True
 
@@ -129,6 +136,8 @@ class Core:
                 if not self._process_input(input(self._get_prompt())):
                     break
         except KeyboardInterrupt:
+            print("Caught keyboard interrupt")
+        finally:
             print("\nExiting..")
             return
 
@@ -137,14 +146,14 @@ class Core:
         spl = inp.split()
         if not spl:
             return True
-        com = self._alias_check(spl[0])
+        com = self._alias_passthrough(spl[0])
         args = spl[1:]
 
         if com in self.exit_commands_list:
-            self._exit()
+            return False
         elif com in self.core_commands_map:
             self.core_commands_map[com](*args)
-        elif com in self.modules[self._loaded_module].get_commands().keys():
+        elif com in self._get_loaded_module().get_commands().keys():
             self._get_loaded_module().get_commands()[com](
                 self._get_loaded_module(), *args)
         else:
@@ -152,19 +161,15 @@ class Core:
         return True
 
     def _get_loaded_module(self) -> CoreModule:
-        """Get the list of of loaded modules."""
+        """Get the list of loaded modules."""
         return self.modules[self._loaded_module]
 
-    @staticmethod
-    def _exit(code: int = 0) -> None:
-        """Abstraction for future - cleaner exits."""
-        sys.exit(code)
-
-    def _alias_check(self, process: str) -> str:
+    def _alias_passthrough(self, process: str) -> str:
         """See if there is an alias registered for the command."""
         return self.aliases.get(process, process)
 
     def _get_prompt(self) -> str:
+        """Produces the prompt for the given state of the modules and core."""
         if not (self._get_loaded_module().append_prompt
                 and not isinstance(self._get_loaded_module().append_prompt, str)):
             return f"{self._loaded_module}{self.prompt} "
