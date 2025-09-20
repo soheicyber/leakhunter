@@ -48,6 +48,13 @@ class Core:
             "exit",
             "quit",
             "leave",
+            "bye",
+            "goodbye",
+            "q",
+            "x",
+            "halt",
+            "stop",
+            "close",
         ]
 
         if modules:
