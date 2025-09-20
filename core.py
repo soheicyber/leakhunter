@@ -29,7 +29,7 @@ class Core:
     # pylint: disable=too-many-instance-attributes
     # We want to track all of these items.
 
-    def __init__(self, modules: Optional[List[CoreModule]] = None) -> None:
+    def __init__(self, modules: Optional[List[CoreModule]] = None, alias_filepath: Optional[str] = None) -> None:
         """Initialize the core."""
         self.env = {}
 
@@ -39,6 +39,9 @@ class Core:
         self._loaded_module = "none"
         self.aliases = {"print": "echo"}
         self._core_commands = CoreCommands()
+        
+        if alias_filepath:
+          self._load_aliases_from_file(alias_filepath)
 
         self.core_commands_map = {
             "echo": self._core_commands.echo,
@@ -60,6 +63,13 @@ class Core:
         if modules:
             self._load_modules(modules)
 
+    def bootstrap(self, *args: str) -> None:
+        """Launch the loaded module(s)."""
+        for arg in args:
+            print(arg)
+
+        self._loop()
+
     def _load_modules(self, modules: List[CoreModule]) -> None:
         """Load the modules provided."""
         for module in modules:
@@ -68,7 +78,7 @@ class Core:
         if len(modules) == 1:
             self._loaded_module = modules[0].__name__
 
-    def load_aliases_from_file(self, filepath: str) -> int:
+    def _load_aliases_from_file(self, filepath: str) -> int:
         """With a provided alias file, load all aliases.
 
         Expecting a file in the form of:
@@ -121,13 +131,6 @@ class Core:
     def _get_initializers(self) -> Dict:
         """Configuration data to pass to all modules."""
         return {"env": self.env}
-
-    def bootstrap(self, *args: str) -> None:
-        """Launch the loaded module(s)."""
-        for arg in args:
-            print(arg)
-
-        self._loop()
 
     def _loop(self) -> None:
         """Loop to continually take input from the user."""

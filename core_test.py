@@ -27,10 +27,9 @@ class CoreTest(unittest.TestCase):
 
     def test_load_aliases_from_file(self):
         """test that we are able to load aliases from a fake file."""
-        self.assertTrue(self.core.load_aliases_from_file(
-            self._FAKE_ALIAS_FILE['filename']))
+        sut = Core(None, self._FAKE_ALIAS_FILE['filename'])
         self.assertEqual(
-            self.core.aliases[self._FAKE_ALIAS_KEY], self._FAKE_ALIAS_VALUE)
+            sut.aliases[self._FAKE_ALIAS_KEY], self._FAKE_ALIAS_VALUE)
 
 
 if __name__ == '__main__':
